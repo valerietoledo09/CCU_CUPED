@@ -13,3 +13,9 @@ Student IDs, phone numbers, and student email addresses are not included. Partne
 Plans save in this browser's local storage. Export/import JSON backups to transfer the current plan. Print the displayed week for Ms. Mirabal. This version has no live shared calendar, authentication, or cross-device synchronization; sharing a URL alone does not share browser-saved changes. Connecting a shared database and access controls is a separate next step before online collaboration.
 
 The interface optionally loads Google Fonts; system fonts work offline. All functional features run without external services.
+
+## View-only sharing
+
+Click **Share view-only link** and copy the generated URL. It embeds the current plan and displayed week in the URL fragment; the recipient does not need a backup file. Editing controls, email drafting, and browser storage writes are disabled in viewer mode. Visiting `?view=1` without a snapshot displays the original proposed schedule. Shared copies do not sync: generate a new link after updates. This is a read-only interface, not authentication or a tamper-proof record. Recipients can make their own independent copies; they cannot change the original browser-saved plan. Anyone with a snapshot link can read its contents.
+
+Email drafts: click an existing calendar visit, then **Prepare email**. Review the recipient/message and choose **Open email app**. Drafts are available in the regular planner, not the view-only copy, and are never sent automatically.
