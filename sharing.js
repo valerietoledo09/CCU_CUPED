@@ -5,9 +5,10 @@ export async function shareUrl(base,state,week){
  if(typeof CompressionStream==='undefined')url.hash=new URLSearchParams({plan:data}).toString();
  else{
   const compressed=await new Response(new Blob([data]).stream().pipeThrough(new CompressionStream('gzip'))).arrayBuffer();
-  const packed=btoa(String.fromCharCode(...new Uint8Array(compressed))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+  const packed=base64Bytes(new Uint8Array(compressed)).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
   url.hash='packed='+packed;
  }
+ if(url.href.length>12000)throw Error('This plan is too large for a snapshot link. Connect Live sync and wait for Shared calendar saved to share the full plan with its team photo, or export a backup file.');
  return url.href;
 }
 export async function readSharedPlan(hash){
@@ -21,4 +22,9 @@ export async function readSharedPlan(hash){
  const parsed=JSON.parse(raw);
  if(!validState(parsed.state)||!/^\d{4}-\d{2}-\d{2}$/.test(parsed.week))throw Error('Invalid shared plan');
  return parsed;
+}
+
+function base64Bytes(bytes){
+ let binary='';for(let i=0;i<bytes.length;i+=8192)binary+=String.fromCharCode(...bytes.subarray(i,i+8192));
+ return btoa(binary);
 }

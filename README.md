@@ -56,3 +56,11 @@ The shared view-only page remains public and retains the email-draft authorizati
 Use the HTTPS site. The editor upgrades HTTP URLs to HTTPS before showing the login; also enable **Enforce HTTPS** in GitHub Pages settings for server redirects. The connected GitHub app cannot modify that Pages setting through its API.
 
 After the deployment, sign in on the actual site using the owner account you previously created. Automated tests use a simulated auth service for correct-owner, wrong-owner, bad-password, expired/revoked sessions, session restoration, logout races, and public-viewer checks; a real owner password is never needed in this workspace.
+
+## Team photo
+
+In the editable planner, open **Team & rotations → Add team photo** and select the original JPG, PNG, or WebP from your device (up to 2 MB). The photo appears beside “Work together. Teach one another.” and is kept in its original bytes without cropping, resizing, or rewriting. Use Change team photo or Remove photo to update it. The heading/photo stack vertically on phones.
+
+The photo is stored as a validated image data URL in the plan's optional `teamPhoto` field, so JSON backups and the active shared calendar carry it. Only the signed-in owner can upload/remove photos. Public viewers display the active calendar's photo and have no upload controls. Wait for **Shared calendar saved**, then use the generated live viewer link to share it. A different calendar or the unconfigured bare viewer does not pick up another calendar's photo automatically.
+
+Photos can exceed practical snapshot URL limits. Snapshot links above 12,000 characters are rejected with guidance to connect Live sync or export a backup, rather than returning a broken URL. Cloud viewers check revision metadata before fetching a changed plan, so unchanged polling does not repeatedly download the photo. Large original photos may fill browser storage; warnings remain visible and failed local backups abort reload/reconnect instead of overwriting the current plan. Export a file backup or confirm cloud saving before closing the page.

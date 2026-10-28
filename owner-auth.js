@@ -1,4 +1,4 @@
-import {CloudCalendar, validateCloudConfig} from './cloud.js';
+import {CloudCalendar, validateCloudConfig} from './cloud.js?v=13';
 
 export const OWNER_PROJECT_URL = 'https://esyhbmbbmktzvylgphxj.supabase.co';
 export const OWNER_USER_ID = '82d08a21-3af2-4c4e-ace3-8c328ff8408b';

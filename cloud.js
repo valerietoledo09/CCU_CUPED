@@ -78,6 +78,13 @@ export class CloudCalendar {
   return row;
  }
  async load(){return this._row(await this._request(this._planPath('&select=id,owner_id,state,revision,updated_at')));}
+ async loadIfChanged(knownRevision){
+  if(!Number.isInteger(knownRevision))return this.load();
+  const rows=await this._request(this._planPath('&select=id,revision'));
+  if(!Array.isArray(rows)||!rows[0]||!Number.isInteger(rows[0].revision))throw Error('The shared calendar is missing or has an invalid format.');
+  if(rows[0].revision===knownRevision)return null;
+  return this.load();
+ }
  async createPlan(state){
   const user=await this.getUser();
   const id=this.config.planId||crypto.randomUUID();

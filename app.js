@@ -1,8 +1,9 @@
-import {requireOwnerAccess} from './owner-auth.js?v=11';
+import {fileToTeamPhoto,isValidTeamPhoto} from './team-photo.js';
+import {requireOwnerAccess} from './owner-auth.js?v=13';
 import {normalizeAssignments,validateAssignment,assignmentStatuses} from './assignments.js';
-import {setupSync} from './sync-ui.js';
-import {shareUrl,readSharedPlan} from './sharing.js';
-import {initialState,roles,validateVisit,emailDraft,validState,applyFirstWeekPlan,confirmedDays,enrichTeachers,visitWarnings,internLunchOverlap} from './model.js';
+import {setupSync} from './sync-ui.js?v=13';
+import {shareUrl,readSharedPlan} from './sharing.js?v=13';
+import {initialState,roles,validateVisit,emailDraft,validState,applyFirstWeekPlan,confirmedDays,enrichTeachers,visitWarnings,internLunchOverlap} from './model.js?v=13';
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)], key='cuped-planner-v1';
 const readOnly=new URLSearchParams(location.search).get('view')==='1'||location.pathname.endsWith('/view.html');
 let sync=null,ownerAccess=null,ownerReady=false,appStarted=false,verifierBusy=false;
@@ -33,8 +34,9 @@ const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&
 const iso=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
 const fmt=d=>d.toLocaleDateString('en-US',{month:'short',day:'numeric'});
 function notice(t){$('#message').textContent=t;setTimeout(()=>$('#message').textContent='',5000);}
-function save(){if(readOnly||!ownerReady)return;try{localStorage.setItem(key,JSON.stringify(state));}catch{notice('Browser storage is unavailable. Export a backup to keep your changes.');}render();sync?.queueSave(state);}
+function save(){if(readOnly||!ownerReady)return false;let stored=true;try{localStorage.setItem(key,JSON.stringify(state));}catch{stored=false;notice('Browser storage is unavailable. Export a backup to keep your changes.');}render();sync?.queueSave(state);return stored;}
 function render(){
+ renderTeamPhoto();
  $('#student-count').innerHTML=`${state.students.length} <small>across A & B days</small>`;
  $('#presenter-count').innerHTML=`${state.presenters.length} <small>ready for the next rotation</small>`;
  $('#teacher-count').innerHTML=`${state.teachers.length} <small>classrooms to connect with</small>`;
@@ -78,7 +80,7 @@ $('#open-email').onclick=()=>{if(readOnly||!ownerReady)return;const input=$('#em
 $('#close-email').onclick=()=>$('#email-dialog').close();$('#close-dialog').onclick=()=>$('#visit-dialog').close();$('#add-visit').onclick=()=>openVisit();
 $('#prev').onclick=()=>{week.setDate(week.getDate()-7);render();};$('#next').onclick=()=>{week.setDate(week.getDate()+7);render();};
  $$('[data-filter]').forEach(b=>b.onclick=()=>{filter=b.dataset.filter;$$('[data-filter]').forEach(x=>x.classList.toggle('selected',x===b));render();});
-$$('[data-tab]').forEach(b=>b.onclick=()=>{$$('.tab').forEach(t=>t.hidden=t.id!==b.dataset.tab);$$('[data-tab]').forEach(x=>x.classList.toggle('active',x===b));$('#breadcrumb').textContent=b.textContent.slice(3).trim();$('.page-heading').classList.toggle('team-heading',b.dataset.tab==='team');$('#team-photo').hidden=b.dataset.tab!=='team'||!$('#team-photo img');$('#title').innerHTML=b.dataset.tab==='schedule'?'Your CCU Schedule, Simplified.':b.dataset.tab==='team'?'Work together.<br>Teach one another.':b.dataset.tab==='emails'?(readOnly?'Email drafts.<br>Authorization required.':'Your next visit.<br>One email away.'):'Good connections.<br>Great classrooms.';});
+$$('[data-tab]').forEach(b=>b.onclick=()=>{$$('.tab').forEach(t=>t.hidden=t.id!==b.dataset.tab);$$('[data-tab]').forEach(x=>x.classList.toggle('active',x===b));$('#breadcrumb').textContent=b.textContent.slice(3).trim();$('.page-heading').classList.toggle('team-heading',b.dataset.tab==='team');renderTeamPhoto();$('#title').innerHTML=b.dataset.tab==='schedule'?'Your CCU Schedule, Simplified.':b.dataset.tab==='team'?'Work together.<br>Teach one another.':b.dataset.tab==='emails'?(readOnly?'Email drafts.<br>Authorization required.':'Your next visit.<br>One email away.'):'Good connections.<br>Great classrooms.';});
 $('#rotation-select').onchange=e=>{rotationId=e.target.value;render();};
 $('#add-rotation').onclick=()=>{const f=$('#rotation-form');const last=state.rotations.at(-1);const start=new Date(last.end+'T12:00:00');start.setDate(start.getDate()+3);f.elements.start.value=iso(start);const end=new Date(start);end.setDate(end.getDate()+11);f.elements.end.value=iso(end);$('#rotation-error').textContent='';$('#rotation-dialog').showModal();};
 $('#close-rotation').onclick=()=>$('#rotation-dialog').close();$('#rotation-form').onsubmit=e=>{e.preventDefault();if(readOnly||!ownerReady)return;const f=e.target,start=f.elements.start.value,end=f.elements.end.value;if(end<start||state.rotations.some(r=>r.start<=end&&r.end>=start)){$('#rotation-error').textContent='Choose an end after the start, without overlapping an existing rotation.';return;}const previous=[...state.rotations].filter(r=>r.end<start).sort((a,b)=>b.end.localeCompare(a.end))[0]||state.rotations[0];const r={id:crypto.randomUUID(),start,end,assignments:{...previous.assignments}};state.rotations.push(r);state.rotations.sort((a,b)=>a.start.localeCompare(b.start));rotationId=r.id;save();$('#rotation-dialog').close();};
@@ -92,7 +94,13 @@ function updateLunchWarnings(){
 for(const field of ['date','day','teacher','start','end','room'])$('#visit-form').elements[field].addEventListener('change',updateLunchWarnings);
 
 $('#share').onclick=async()=>{
- $('#copy-share').textContent='Copy link';await sync?.flush();const live=sync?.getLiveConfig();$('#share-mode').textContent=live?'Live link: viewers see saved changes automatically, usually within 15 seconds.':'Snapshot link: live syncing is not connected or has unsaved changes. This copy will not update; open Live sync to connect.';$('#share-link').value=live?liveUrl(live):await shareUrl(location.href,state,iso(week));$('#open-shared').href=$('#share-link').value;$('#share-dialog').showModal();
+ $('#copy-share').textContent='Copy link';$('#copy-share').disabled=false;$('#open-shared').hidden=false;
+ try{
+  await sync?.flush();const live=sync?.getLiveConfig();
+  $('#share-mode').textContent=live?'Live link: viewers see saved changes automatically, usually within 15 seconds.':'Snapshot link: live syncing is not connected or has unsaved changes. This copy will not update; open Live sync to connect.';
+  $('#share-link').value=live?liveUrl(live):await shareUrl(location.href,state,iso(week));$('#open-shared').href=$('#share-link').value;
+ }catch(error){$('#share-mode').textContent=error.message;$('#share-link').value='';$('#copy-share').disabled=true;$('#open-shared').hidden=true;}
+ $('#share-dialog').showModal();
 };
 $('#close-share').onclick=()=>$('#share-dialog').close();
 $('#copy-share').onclick=async()=>{try{await navigator.clipboard.writeText($('#share-link').value);$('#copy-share').textContent='Copied!';}catch{$('#share-link').select();notice('Select and copy the link from the box.');}};
@@ -170,3 +178,33 @@ async function verifyEditorAccess(){
 window.addEventListener('focus',verifyEditorAccess);
 document.addEventListener('visibilitychange',verifyEditorAccess);
 if(!readOnly)setInterval(verifyEditorAccess,60000);
+
+function renderTeamPhoto(){
+ const photo=isValidTeamPhoto(state.teamPhoto)?state.teamPhoto:null;
+ const image=$('#team-photo-image'),figure=$('#team-photo');
+ const active=$('[data-tab=team]').classList.contains('active');
+ figure.hidden=!active||(!photo&&readOnly);
+ figure.classList.toggle('no-photo',!photo);
+ image.hidden=!photo;
+ if(photo){if(image.getAttribute('src')!==photo.dataUrl)image.src=photo.dataUrl;image.alt=photo.alt;}
+ else image.removeAttribute('src');
+ $('#team-photo-controls').hidden=readOnly;
+ $('#pick-team-photo').textContent=photo?'Change team photo':'Add team photo';
+ $('#remove-team-photo').hidden=!photo;
+}
+$('#pick-team-photo').onclick=()=>{if(readOnly||!ownerReady)return;$('#team-photo-file').click();};
+$('#team-photo-file').onchange=async event=>{
+ if(readOnly||!ownerReady)return;
+ const file=event.target.files[0];if(!file)return;
+ const picker=$('#pick-team-photo');picker.disabled=true;
+ try{
+  const photo=await fileToTeamPhoto(file);if(!ownerReady)return;
+  state.teamPhoto=photo;const stored=save();
+  notice(stored?'Team photo saved on this device. Wait for Shared calendar saved to share it with viewers.':'Browser storage is full. Export a backup or confirm Shared calendar saved before closing this page.');
+ }catch(error){notice(error.message);}
+ finally{picker.disabled=false;event.target.value='';}
+};
+$('#remove-team-photo').onclick=()=>{
+ if(readOnly||!ownerReady||!confirm('Remove the team photo from this schedule?'))return;
+ delete state.teamPhoto;save();
+};

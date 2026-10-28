@@ -59,3 +59,9 @@ test('requests use the global fetch receiver required by browsers',async()=>{
  const client=new CloudCalendar(config,async function(){assert.equal(this,globalThis);return reply([row()]);});
  assert.equal((await client.load()).revision,1);
 });
+test('unchanged polling fetches only revision metadata instead of downloading the team photo repeatedly',async()=>{
+ const urls=[];
+ const client=new CloudCalendar(config,async(url)=>{urls.push(url);return reply(new URL(url).searchParams.get('select')==='id,revision'?[{id:config.planId,revision:3}]:[row(3)]);});
+ assert.equal(await client.loadIfChanged(3),null);assert.equal(urls.length,1);assert.equal(new URL(urls[0]).searchParams.get('select'),'id,revision');
+ assert.equal((await client.loadIfChanged(2)).revision,3);assert.equal(urls.length,3);assert.ok(new URL(urls[2]).searchParams.get('select').includes('state'));
+});

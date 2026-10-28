@@ -1,5 +1,5 @@
-import {CloudCalendar,CloudConflictError,validateCloudConfig} from './cloud.js';
-import {validState} from './model.js';
+import {CloudCalendar,CloudConflictError,validateCloudConfig} from './cloud.js?v=13';
+import {validState} from './model.js?v=13';
 const CONFIG='cuped-cloud-config',SESSION='cuped-cloud-session',LAST='cuped-cloud-last-state',BACKUP='cuped-before-cloud-reload';
 const read=(key)=>{try{return JSON.parse(localStorage.getItem(key));}catch{return null;}};
 const write=(key,value)=>{try{if(value===null)localStorage.removeItem(key);else localStorage.setItem(key,JSON.stringify(value));}catch{}};
@@ -13,7 +13,7 @@ export async function setupSync({readOnly,ownerClient=null,getState,applyState,o
  const status=(text)=>{if(disposed)return;if(statusNode)statusNode.textContent=text;onStatus(text);};
  const setLast=(state)=>{if(!readOnly&&!disposed)write(LAST,{url:client.config.url,planId:client.config.planId,state});};
  const loaded=(row)=>{if(!validState(row.state))throw Error('The shared calendar data is invalid. Your local plan has not been changed.');return row;};
- const backup=()=>{if(!disposed)write(BACKUP,{savedAt:new Date().toISOString(),state:structuredClone(getState())});};
+ const backup=()=>{if(disposed)return;try{localStorage.setItem(BACKUP,JSON.stringify({savedAt:new Date().toISOString(),state:structuredClone(getState())}));}catch{throw Error('Browser storage is full, so this plan could not be backed up. Export a backup file before replacing it. Your current plan has been kept.');}};
  const persistClient=()=>{
   if(readOnly||!client||disposed)return;
   const activeClient=client;
@@ -26,7 +26,10 @@ export async function setupSync({readOnly,ownerClient=null,getState,applyState,o
   if(!replace&&(pending||paused))return;
   refreshBusy=true;const activeClient=client;
   try{
-   const row=loaded(await activeClient.load());
+   const received=!replace&&typeof activeClient.loadIfChanged==='function'?await activeClient.loadIfChanged(revision):await activeClient.load();
+   if(disposed||client!==activeClient)return;
+   if(!received){status(readOnly?'Live view · updates every 15 seconds':'Shared calendar saved · viewers update within 15 seconds');return;}
+   const row=loaded(received);
    if(disposed||client!==activeClient)return;
    if(readOnly){if(revision!==row.revision)accept(row);else status('Live view · updates every 15 seconds');return row;}
    const local=getState();const last=read(LAST);const clean=last?.url===client.config.url&&last?.planId===client.config.planId&&same(last.state,local);
