@@ -3,7 +3,7 @@ import {requireOwnerAccess} from './owner-auth.js?v=15';
 import {normalizeAssignments,validateAssignment,assignmentRoles,assignmentStatuses} from './assignments.js?v=15';
 import {setupSync} from './sync-ui.js?v=15';
 import {shareUrl,readSharedPlan} from './sharing.js?v=15';
-import {initialState,roles,validateVisit,emailDraft,validState,applyFirstWeekPlan,confirmedDays,enrichTeachers,visitWarnings,internLunchOverlap} from './model.js?v=15';
+import {initialState,roles,validateVisit,emailDraft,validState,applyFirstWeekPlan,confirmedDays,enrichTeachers,visitWarnings,internLunchOverlap} from './model.js?v=16';
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)], key='cuped-planner-v1';
 const writerId=crypto.randomUUID();
 let localSavedAt=0,localWriterId=null;try{localSavedAt=Number(localStorage.getItem('cuped-planner-saved-at'))||0;localWriterId=localStorage.getItem('cuped-planner-writer');}catch{}
