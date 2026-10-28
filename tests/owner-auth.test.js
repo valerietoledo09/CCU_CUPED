@@ -46,3 +46,11 @@ test('login messages distinguish public-key setup, unconfirmed account, and inva
  assert.match(ownerAuthError(Error('Invalid login credentials')),/email or password did not match/);
  assert.match(ownerAuthError(Error('Could not reach shared calendar')),/planner stays locked/);
 });
+
+test('previously configured account cannot open the planner after owner correction',async()=>{
+ const oldOwner='65d59e40-fcd4-477b-aa11-32810222f345';
+ const client=new CloudCalendar({url:OWNER_PROJECT_URL,key},async(url)=>url.includes('/logout')?reply({}):reply({id:oldOwner}));
+ client.restoreSession(session(oldOwner));
+ await assert.rejects(()=>verifyOwner(client),/not authorized/);
+ assert.equal(client.session,null);
+});

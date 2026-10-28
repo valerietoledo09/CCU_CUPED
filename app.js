@@ -1,4 +1,4 @@
-import {requireOwnerAccess} from './owner-auth.js';
+import {requireOwnerAccess} from './owner-auth.js?v=11';
 import {normalizeAssignments,validateAssignment,assignmentStatuses} from './assignments.js';
 import {setupSync} from './sync-ui.js';
 import {shareUrl,readSharedPlan} from './sharing.js';

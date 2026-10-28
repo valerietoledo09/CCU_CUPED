@@ -1,7 +1,7 @@
 import {CloudCalendar, validateCloudConfig} from './cloud.js';
 
 export const OWNER_PROJECT_URL = 'https://esyhbmbbmktzvylgphxj.supabase.co';
-export const OWNER_USER_ID = '65d59e40-fcd4-477b-aa11-32810222f345';
+export const OWNER_USER_ID = '82d08a21-3af2-4c4e-ace3-8c328ff8408b';
 const SESSION_KEY = 'cuped-cloud-session';
 const CLOUD_CONFIG_KEY = 'cuped-cloud-config';
 const PUBLIC_KEY = 'cuped-owner-public-key';
