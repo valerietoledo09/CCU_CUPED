@@ -1,14 +1,31 @@
+import {requireOwnerAccess} from './owner-auth.js';
 import {normalizeAssignments,validateAssignment,assignmentStatuses} from './assignments.js';
 import {setupSync} from './sync-ui.js';
 import {shareUrl,readSharedPlan} from './sharing.js';
 import {initialState,roles,validateVisit,emailDraft,validState,applyFirstWeekPlan,confirmedDays,enrichTeachers,visitWarnings,internLunchOverlap} from './model.js';
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)], key='cuped-planner-v1';
 const readOnly=new URLSearchParams(location.search).get('view')==='1'||location.pathname.endsWith('/view.html');
+let sync=null,ownerAccess=null,ownerReady=false,appStarted=false,verifierBusy=false;
+const plannerShell=document.querySelector('#planner-shell');
+function lockPlanner(){
+ ownerReady=false;
+ if(plannerShell){plannerShell.hidden=true;plannerShell.inert=true;}
+ document.querySelectorAll('dialog[open]').forEach(d=>d.close());
+ sync?.destroy();
+}
+function unlockPlanner(){
+ if(plannerShell){plannerShell.hidden=false;plannerShell.inert=false;}
+ document.querySelector('#auth-loading')?.remove();
+}
+ownerAccess=await requireOwnerAccess({readOnly,onLock:lockPlanner,onUnlock:()=>{if(appStarted)location.reload();}});
+ownerReady=!!ownerAccess?.isAuthorized();
+if(readOnly||ownerReady)unlockPlanner();
+
 let shared=null,shareError=false;
 if(readOnly)try{shared=await readSharedPlan(location.hash);}catch{shareError=true;}
 let state=shared?.state||initialState();if(!readOnly)try{const saved=JSON.parse(localStorage.getItem(key));if(validState(saved))state=saved;}catch{}
 normalizeAssignments(state);
-let sync=null,cloudLoaded=false;
+let cloudLoaded=false;
 if(!shared)state=enrichTeachers(applyFirstWeekPlan(state));if(!readOnly)try{localStorage.setItem(key,JSON.stringify(state));}catch{}
 let week=new Date(2026,9,26), filter='All',rotationId=state.rotations.at(-1).id;
 if(shared)week=new Date(shared.week+'T12:00:00');
@@ -16,7 +33,7 @@ const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&
 const iso=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
 const fmt=d=>d.toLocaleDateString('en-US',{month:'short',day:'numeric'});
 function notice(t){$('#message').textContent=t;setTimeout(()=>$('#message').textContent='',5000);}
-function save(){if(readOnly)return;try{localStorage.setItem(key,JSON.stringify(state));}catch{notice('Browser storage is unavailable. Export a backup to keep your changes.');}render();sync?.queueSave(state);}
+function save(){if(readOnly||!ownerReady)return;try{localStorage.setItem(key,JSON.stringify(state));}catch{notice('Browser storage is unavailable. Export a backup to keep your changes.');}render();sync?.queueSave(state);}
 function render(){
  $('#student-count').innerHTML=`${state.students.length} <small>across A & B days</small>`;
  $('#presenter-count').innerHTML=`${state.presenters.length} <small>ready for the next rotation</small>`;
@@ -50,21 +67,21 @@ function render(){
  if(readOnly){$$('#student-rows input, #student-rows select, #teacher-cards input, #teacher-cards select').forEach(x=>x.disabled=true);$$('.empty-day').forEach(x=>{x.disabled=true;x.innerHTML='No visits scheduled';});}
 }
 function presenterOptions(selected=[]){const day=$('#visit-form').elements.day.value;$('#presenter-options').innerHTML=state.students.filter(s=>s.day===day).map(s=>`<label class="check-option"><input type="checkbox" name="presenter" value="${esc(s.name)}" ${selected.includes(s.name)?'checked':''}>${esc(s.name)}${state.presenters.includes(s.name)?' <small>proposed</small>':''}</label>`).join('');}
-function openVisit(v,date){if(readOnly&&!v)return;const f=$('#visit-form');f.reset();$('#form-error').textContent='';$('#visit-teacher').innerHTML='<option value="">Select a teacher</option>'+state.teachers.map(t=>`<option>${esc(t.name)}</option>`).join('');f.elements.id.value=v?.id||'';f.elements.date.value=v?.date||date||'';for(const k of ['day','start','end','teacher','room','status','notes'])if(v)f.elements[k].value=v[k]||'';if(!v&&confirmedDays[f.elements.date.value])f.elements.day.value=confirmedDays[f.elements.date.value];presenterOptions(v?.presenters||state.presenters);f.elements.lunchAcknowledged.checked=!!v?.lunchAcknowledged;updateLunchWarnings();$('#dialog-title').textContent=v?'Edit classroom visit':'Schedule a visit';$('#delete-visit').hidden=!v;$('#email-visit').hidden=readOnly||!v;if(readOnly){$('#dialog-title').textContent='Classroom visit details';$$('#visit-form input, #visit-form select, #visit-form textarea').forEach(x=>x.disabled=true);$('#delete-visit').hidden=true;$('#email-visit').hidden=readOnly||!v;$('#visit-form [type=submit]').hidden=true;$('#close-dialog').textContent='Close';}$('#visit-dialog').showModal();}
+function openVisit(v,date){if(!readOnly&&!ownerReady)return;if(readOnly&&!v)return;const f=$('#visit-form');f.reset();$('#form-error').textContent='';$('#visit-teacher').innerHTML='<option value="">Select a teacher</option>'+state.teachers.map(t=>`<option>${esc(t.name)}</option>`).join('');f.elements.id.value=v?.id||'';f.elements.date.value=v?.date||date||'';for(const k of ['day','start','end','teacher','room','status','notes'])if(v)f.elements[k].value=v[k]||'';if(!v&&confirmedDays[f.elements.date.value])f.elements.day.value=confirmedDays[f.elements.date.value];presenterOptions(v?.presenters||state.presenters);f.elements.lunchAcknowledged.checked=!!v?.lunchAcknowledged;updateLunchWarnings();$('#dialog-title').textContent=v?'Edit classroom visit':'Schedule a visit';$('#delete-visit').hidden=!v;$('#email-visit').hidden=readOnly||!v;if(readOnly){$('#dialog-title').textContent='Classroom visit details';$$('#visit-form input, #visit-form select, #visit-form textarea').forEach(x=>x.disabled=true);$('#delete-visit').hidden=true;$('#email-visit').hidden=readOnly||!v;$('#visit-form [type=submit]').hidden=true;$('#close-dialog').textContent='Close';}$('#visit-dialog').showModal();}
 $('#visit-form').elements.date.onchange=()=>{const day=confirmedDays[$('#visit-form').elements.date.value];if(day){$('#visit-form').elements.day.value=day;presenterOptions(state.presenters);}};
 $('#visit-form').elements.day.onchange=()=>presenterOptions(state.presenters);
-$('#visit-form').onsubmit=e=>{e.preventDefault();if(readOnly)return;const f=e.target;const v=Object.fromEntries(new FormData(f));v.presenters=new FormData(f).getAll('presenter');delete v.presenter;v.lunchAcknowledged=f.elements.lunchAcknowledged.checked;const error=validateVisit(v,state,v.id);if(error){$('#form-error').textContent=error;return;}v.id=v.id||crypto.randomUUID();const i=state.visits.findIndex(x=>x.id===v.id);if(i<0)state.visits.push(v);else state.visits[i]=v;const d=new Date(v.date+'T12:00:00');d.setDate(d.getDate()-((d.getDay()+6)%7));week=d;save();$('#visit-dialog').close();notice('Classroom visit saved.');};
-$('#delete-visit').onclick=()=>{if(readOnly)return;if(!confirm('Delete this classroom visit?'))return;state.visits=state.visits.filter(v=>v.id!==$('#visit-form').elements.id.value);save();$('#visit-dialog').close();};
-function openEmail(v){if(readOnly||!v)return;$('#email-recipient').value=state.teachers.find(t=>t.name===v.teacher)?.email||'';$('#email-body').value=emailDraft(v);$('#copy-email').textContent='Copy draft';$('#email-dialog').showModal();}
+$('#visit-form').onsubmit=e=>{e.preventDefault();if(readOnly||!ownerReady)return;const f=e.target;const v=Object.fromEntries(new FormData(f));v.presenters=new FormData(f).getAll('presenter');delete v.presenter;v.lunchAcknowledged=f.elements.lunchAcknowledged.checked;const error=validateVisit(v,state,v.id);if(error){$('#form-error').textContent=error;return;}v.id=v.id||crypto.randomUUID();const i=state.visits.findIndex(x=>x.id===v.id);if(i<0)state.visits.push(v);else state.visits[i]=v;const d=new Date(v.date+'T12:00:00');d.setDate(d.getDate()-((d.getDay()+6)%7));week=d;save();$('#visit-dialog').close();notice('Classroom visit saved.');};
+$('#delete-visit').onclick=()=>{if(readOnly||!ownerReady)return;if(!confirm('Delete this classroom visit?'))return;state.visits=state.visits.filter(v=>v.id!==$('#visit-form').elements.id.value);save();$('#visit-dialog').close();};
+function openEmail(v){if(readOnly||!ownerReady||!v)return;$('#email-recipient').value=state.teachers.find(t=>t.name===v.teacher)?.email||'';$('#email-body').value=emailDraft(v);$('#copy-email').textContent='Copy draft';$('#email-dialog').showModal();}
 $('#email-visit').onclick=()=>openEmail(state.visits.find(v=>v.id===$('#visit-form').elements.id.value));
-$('#open-email').onclick=()=>{if(readOnly)return;const input=$('#email-recipient');if(!input.value||!input.checkValidity()){input.required=true;input.reportValidity();return;}location.href=`mailto:${encodeURIComponent(input.value)}?subject=${encodeURIComponent('CCU CUPED classroom visit confirmation')}&body=${encodeURIComponent($('#email-body').value)}`;};
+$('#open-email').onclick=()=>{if(readOnly||!ownerReady)return;const input=$('#email-recipient');if(!input.value||!input.checkValidity()){input.required=true;input.reportValidity();return;}location.href=`mailto:${encodeURIComponent(input.value)}?subject=${encodeURIComponent('CCU CUPED classroom visit confirmation')}&body=${encodeURIComponent($('#email-body').value)}`;};
 $('#close-email').onclick=()=>$('#email-dialog').close();$('#close-dialog').onclick=()=>$('#visit-dialog').close();$('#add-visit').onclick=()=>openVisit();
 $('#prev').onclick=()=>{week.setDate(week.getDate()-7);render();};$('#next').onclick=()=>{week.setDate(week.getDate()+7);render();};
  $$('[data-filter]').forEach(b=>b.onclick=()=>{filter=b.dataset.filter;$$('[data-filter]').forEach(x=>x.classList.toggle('selected',x===b));render();});
 $$('[data-tab]').forEach(b=>b.onclick=()=>{$$('.tab').forEach(t=>t.hidden=t.id!==b.dataset.tab);$$('[data-tab]').forEach(x=>x.classList.toggle('active',x===b));$('#breadcrumb').textContent=b.textContent.slice(3).trim();$('#title').innerHTML=b.dataset.tab==='schedule'?'Your CCU Schedule, Simplified.':b.dataset.tab==='team'?'Everyone has a part.<br>Give them a place.':b.dataset.tab==='emails'?(readOnly?'Email drafts.<br>Authorization required.':'Your next visit.<br>One email away.'):'Good connections.<br>Great classrooms.';});
 $('#rotation-select').onchange=e=>{rotationId=e.target.value;render();};
 $('#add-rotation').onclick=()=>{const f=$('#rotation-form');const last=state.rotations.at(-1);const start=new Date(last.end+'T12:00:00');start.setDate(start.getDate()+3);f.elements.start.value=iso(start);const end=new Date(start);end.setDate(end.getDate()+11);f.elements.end.value=iso(end);$('#rotation-error').textContent='';$('#rotation-dialog').showModal();};
-$('#close-rotation').onclick=()=>$('#rotation-dialog').close();$('#rotation-form').onsubmit=e=>{e.preventDefault();if(readOnly)return;const f=e.target,start=f.elements.start.value,end=f.elements.end.value;if(end<start||state.rotations.some(r=>r.start<=end&&r.end>=start)){$('#rotation-error').textContent='Choose an end after the start, without overlapping an existing rotation.';return;}const previous=[...state.rotations].filter(r=>r.end<start).sort((a,b)=>b.end.localeCompare(a.end))[0]||state.rotations[0];const r={id:crypto.randomUUID(),start,end,assignments:{...previous.assignments}};state.rotations.push(r);state.rotations.sort((a,b)=>a.start.localeCompare(b.start));rotationId=r.id;save();$('#rotation-dialog').close();};
+$('#close-rotation').onclick=()=>$('#rotation-dialog').close();$('#rotation-form').onsubmit=e=>{e.preventDefault();if(readOnly||!ownerReady)return;const f=e.target,start=f.elements.start.value,end=f.elements.end.value;if(end<start||state.rotations.some(r=>r.start<=end&&r.end>=start)){$('#rotation-error').textContent='Choose an end after the start, without overlapping an existing rotation.';return;}const previous=[...state.rotations].filter(r=>r.end<start).sort((a,b)=>b.end.localeCompare(a.end))[0]||state.rotations[0];const r={id:crypto.randomUUID(),start,end,assignments:{...previous.assignments}};state.rotations.push(r);state.rotations.sort((a,b)=>a.start.localeCompare(b.start));rotationId=r.id;save();$('#rotation-dialog').close();};
 $('#print').onclick=()=>window.print();$('#export').onclick=()=>{const url=URL.createObjectURL(new Blob([JSON.stringify(state,null,2)],{type:'application/json'}));const a=document.createElement('a');a.href=url;a.download='cuped-schedule.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);};$('#import').onclick=()=>$('#import-file').click();$('#import-file').onchange=async e=>{try{const incoming=JSON.parse(await e.target.files[0].text());if(!validState(incoming))throw Error('Invalid schedule');if(!confirm('Replace the plan in this browser with this backup? Export your current plan first if needed.'))return;state=normalizeAssignments(enrichTeachers(incoming));rotationId=state.rotations.at(-1).id;save();notice('Schedule imported.');}catch{notice('Could not import this file. Choose a CUPED JSON backup.');}e.target.value='';};render();
 
 function updateLunchWarnings(){
@@ -89,13 +106,13 @@ if(readOnly){
  if(shareError){$('#view-banner').textContent='This shared link is invalid. Showing the original proposed schedule; ask Valerie for a new link.';}
 }
 
-$('#copy-email').onclick=async()=>{if(readOnly)return;try{await navigator.clipboard.writeText($('#email-body').value);$('#copy-email').textContent='Copied!';}catch{$('#email-body').select();notice('Select and copy the draft text.');}};
+$('#copy-email').onclick=async()=>{if(readOnly||!ownerReady)return;try{await navigator.clipboard.writeText($('#email-body').value);$('#copy-email').textContent='Copied!';}catch{$('#email-body').select();notice('Select and copy the draft text.');}};
 
 function liveUrl(config){
  const url=new URL(location.href);url.pathname=url.pathname.replace(/[^/]*$/,'')+'view.html';url.search='';url.hash=new URLSearchParams({live:JSON.stringify({url:config.url,key:config.key,planId:config.planId})}).toString();return url.href;
 }
 function openAssignment(a,date){
- if(readOnly&&!a)return;
+ if((!readOnly&&!ownerReady)||(readOnly&&!a))return;
  const f=$('#assignment-form');f.reset();$('#assignment-error').textContent='';
  f.elements.id.value=a?.id||'';f.elements.date.value=a?.date||date||'';
  f.elements.role.innerHTML='<option value="">Choose a role</option>'+roles.map(r=>`<option>${esc(r)}</option>`).join('');
@@ -110,7 +127,7 @@ function openAssignment(a,date){
 $('#add-assignment').onclick=()=>openAssignment();
 $('#close-assignment').onclick=()=>$('#assignment-dialog').close();
 $('#assignment-form').onsubmit=e=>{
- e.preventDefault();if(readOnly)return;
+ e.preventDefault();if(readOnly||!ownerReady)return;
  const data=new FormData(e.target);const assignment=Object.fromEntries(data);delete assignment.assignee;
  assignment.assignees=data.getAll('assignee');assignment.description=assignment.description.trim();
  const error=validateAssignment(assignment,state);if(error){$('#assignment-error').textContent=error;return;}
@@ -120,10 +137,10 @@ $('#assignment-form').onsubmit=e=>{
  save();$('#assignment-dialog').close();notice('Work assignment saved.');
 };
 $('#delete-assignment').onclick=()=>{
- if(readOnly||!confirm('Delete this work assignment?'))return;
+ if(readOnly||!ownerReady||!confirm('Delete this work assignment?'))return;
  state.assignments=state.assignments.filter(a=>a.id!==$('#assignment-form').elements.id.value);save();$('#assignment-dialog').close();
 };
-sync=await setupSync({readOnly,getState:()=>structuredClone(state),applyState:incoming=>{
+sync=await setupSync({readOnly,ownerClient:ownerAccess?.client,getState:()=>structuredClone(state),applyState:incoming=>{
  if(!validState(incoming))throw Error('The shared schedule has an unsupported format.');cloudLoaded=true;
  state=normalizeAssignments(incoming);if(!state.rotations.some(r=>r.id===rotationId))rotationId=state.rotations.at(-1).id;
  if(!readOnly)try{localStorage.setItem(key,JSON.stringify(state));}catch{}
@@ -132,3 +149,24 @@ sync=await setupSync({readOnly,getState:()=>structuredClone(state),applyState:in
  if(!readOnly)$('.storage-note').textContent=text+' · Export a backup to keep a separate copy.';
  if(readOnly&&(new URLSearchParams(location.hash.slice(1)).has('live')||/^(Loading shared calendar|Live view|Could not load shared calendar)/.test(text))){$('.storage-note').textContent=text;$('#view-banner').textContent='View-only live calendar · '+text;$('#calendar').hidden=!cloudLoaded;}
 }});
+
+if(!readOnly&&!ownerReady)sync?.destroy();
+appStarted=true;
+let signingOut=false;
+async function logoutEditor(){
+ if(readOnly||signingOut)return;
+ signingOut=true;lockPlanner();
+ try{await ownerAccess?.signOut();}finally{location.reload();}
+}
+const signOutButton=document.querySelector('#owner-signout');
+if(signOutButton){signOutButton.hidden=readOnly;signOutButton.onclick=logoutEditor;}
+window.addEventListener('owner-session-signed-out',logoutEditor);
+async function verifyEditorAccess(){
+ if(readOnly||!ownerReady||verifierBusy||document.hidden)return;
+ verifierBusy=true;if(plannerShell)plannerShell.inert=true;
+ try{if(!await ownerAccess.verify())lockPlanner();}
+ finally{verifierBusy=false;if(plannerShell&&ownerReady)plannerShell.inert=false;}
+}
+window.addEventListener('focus',verifyEditorAccess);
+document.addEventListener('visibilitychange',verifyEditorAccess);
+if(!readOnly)setInterval(verifyEditorAccess,60000);

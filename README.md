@@ -2,7 +2,7 @@
 
 A simple classroom presentation planner for Coral Reef CCU CUPED interns representing EdFed.
 
-Run `npm start` from this directory, then open port 3000 in a browser. No dependency installation is required. Local planning and snapshot sharing need no account; optional live sync uses Supabase and an owner sign-in. Run `npm test` for scheduling-rule tests.
+Run `npm start` from this directory, then open port 3000 in a browser. No dependency installation is required. The editable planner requires the verified Supabase owner sign-in; public viewers need no account. Live sync uses the same owner session. Run `npm test` for scheduling-rule tests.
 
 The calendar opens October 26–30, 2026. October 29 is confirmed B-Day and October 30 is confirmed A-Day. Three draft visits per day use the proposed four-person day teams, 15-minute presentations at 9:40, 10:10, and 10:40, with 15-minute breaks. Teacher assignments and exact times are proposals, not confirmed bookings. Existing plans on either date are preserved by a one-time migration; the migration does not re-add deleted draft visits. Choose each visit’s actual A/B school day; the app does not infer the school calendar. Presentations are restricted to the project lead’s corrected 9:40 a.m.–noon window on both A and B days. First-lunch classes have lunch 10:35–11:15; second-lunch classes have lunch 11:35–12:15. CCU interns have second lunch. Known teacher-lunch overlaps are blocked; intern-lunch overlaps require acknowledgment. Unknown teacher lunches show warnings on saved visits and in the visit editor. The supplied school lunch PDF maps departments and rooms to lunch groups for both A and B days. Unknown partner lunch groups are filled from department rules; existing manual assignments are retained. Room-specific rules take priority over department assignments, with a warning when they differ. Individual A/B class exceptions can be edited. The untouched Gornail draft on October 29 moves from 10:40 to 11:15 to avoid first lunch; edited visits are retained and flagged if conflicting. Department and room rules are in lunch.js. Dates, teachers, presenters, rooms, notes, and confirmation statuses can be edited. Overlapping teachers or presenters are blocked. Email drafts open in the user's email client; emails are not sent automatically or at a scheduled time.
 
@@ -28,13 +28,13 @@ Use **Assign work** above the calendar, or **Assign work** on an empty day. Choo
 
 ## Connect live updates (one-time Supabase setup)
 
-Live sync is implemented but requires your own Supabase project. Until it is connected, the app clearly shows that changes stay on the current device, and shared links are snapshots.
+Live sync is implemented but requires your own Supabase project. Until the shared calendar is connected, changes stay on the current device and shared links are snapshots. The owner sign-in protects editor access independently of live-sync setup.
 
 1. Create a free Supabase organization and project. Keep the database password private.
 2. Open SQL Editor → New query. Copy all of `supabase-setup.sql` into it and run it. This creates a public-read `plans` table with row-level security; only a plan's signed-in creator can insert/update that plan.
 3. In Authentication → Users → Add user, create and confirm your owner account with an email and password. This is separate from your database password. Disable public sign-ups if you do not need them.
 4. Find your Project URL and public **publishable** key (or legacy **anon** key) in the Connect dialog / API settings. Never enter a secret/service-role key in the app.
-5. Open the regular planner → **Live sync**. Enter the project URL, public key, owner email/password, and leave Calendar ID blank the first time. Choose **Sign in & connect**, then confirm public sharing of your current plan.
+5. Open the regular planner and sign in with your owner email/password. In **Live sync**, the canonical project settings and owner session are already filled in. Leave Calendar ID blank only for your first calendar, choose **Connect calendar**, and confirm public sharing. Use the existing Calendar ID on other devices instead of creating duplicates.
 6. Open **Share view-only link**. A connected, fully saved plan generates a **live** URL; the read-only page checks for updates every 15 seconds and on return to the tab. It does not require sign-in. Owner edits save automatically after a short delay. Wait for “Shared calendar saved” before sharing. Older snapshot links remain fixed copies.
 
 The public URL/key/calendar ID can optionally be placed in `sync-config.json` to make the simple `view.html` address use the live schedule automatically. This file must contain only `{ "url": "https://PROJECT.supabase.co", "key": "PUBLIC_PUBLISHABLE_KEY", "planId": "CALENDAR_UUID" }`. It is currently `{}` and no live project is assumed. Never put owner passwords, access/refresh tokens, secret keys, or database passwords in it. The Live sync panel displays the connected Calendar ID.
@@ -44,3 +44,15 @@ Owner sessions are stored only in that browser. Signed-out edits remain local un
 A custom domain can serve the same app and connect to the same Supabase calendar. Before switching domains, export a backup because browser storage belongs to each domain. Use the existing project and Calendar ID at the new address instead of creating a second calendar. The app cannot guarantee that a school's network will permit either hosting or database requests.
 
 Validation: unit tests cover assignment migration, content validation, public cloud requests, owner sessions, token refresh, conditional revision saves, and share snapshots. Browser integration checks exercise the UI against a simulated Supabase API; a real project still needs the setup steps above before end-to-end cloud readiness can be claimed.
+
+## Owner sign-in
+
+The editable root page starts hidden and inert. `owner-auth.js` waits for Supabase to verify the fixed owner user ID before app state is loaded, rendered, or connected to sync. The username is the email for the existing user in Supabase Authentication → Users; its password is never stored in source, browser storage, or exported backups. There is no public sign-up or offline unlock. A valid account belonging to someone else is denied.
+
+`auth-config.json` contains only public connection settings (project URL, owner UUID, publishable key). The project and owner identity are pinned in the auth module. The publishable key was checked against the actual Supabase project; owner credentials remain private. The server must confirm the owner session on load, return to the tab, and periodic verification. Signing out immediately locks the planner, clears the browser session, cancels sync activity, and signs out this session without logging out other devices. Pending responses cannot restore a signed-out session. Sync and the login gate reuse one verified client to avoid refresh-token races.
+
+The shared view-only page remains public and retains the email-draft authorization notice. Backend row-level security enforces owner writes to the shared plan; the static HTML/JavaScript and intentionally public calendar contents remain publicly downloadable on GitHub Pages. The screen gate does not make those static files private.
+
+Use the HTTPS site. The editor upgrades HTTP URLs to HTTPS before showing the login; also enable **Enforce HTTPS** in GitHub Pages settings for server redirects. The connected GitHub app cannot modify that Pages setting through its API.
+
+After the deployment, sign in on the actual site using the owner account you previously created. Automated tests use a simulated auth service for correct-owner, wrong-owner, bad-password, expired/revoked sessions, session restoration, logout races, and public-viewer checks; a real owner password is never needed in this workspace.

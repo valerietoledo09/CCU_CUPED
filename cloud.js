@@ -67,7 +67,7 @@ export class CloudCalendar {
   if(!data?.id)throw new Error('Could not verify the calendar owner account.');
   this._session.user=data;return structuredClone(data);
  }
- async signOut(){try{if(this._session)await this._request('/auth/v1/logout',{method:'POST',authenticated:true});}finally{this._setSession(null);}}
+ async signOut(){try{if(this._session)await this._request('/auth/v1/logout?scope=local',{method:'POST',authenticated:true});}finally{this._setSession(null);}}
  _planPath(extra=''){
   if(!this.config.planId)throw new Error('Connect to a shared calendar first.');
   return '/rest/v1/plans?id=eq.'+encodeURIComponent(this.config.planId)+extra;
