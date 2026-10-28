@@ -1,10 +1,12 @@
 import {fileToTeamPhoto,isValidTeamPhoto} from './team-photo.js';
-import {requireOwnerAccess} from './owner-auth.js?v=13';
-import {normalizeAssignments,validateAssignment,assignmentRoles,assignmentStatuses} from './assignments.js?v=14';
-import {setupSync} from './sync-ui.js?v=13';
-import {shareUrl,readSharedPlan} from './sharing.js?v=13';
-import {initialState,roles,validateVisit,emailDraft,validState,applyFirstWeekPlan,confirmedDays,enrichTeachers,visitWarnings,internLunchOverlap} from './model.js?v=13';
+import {requireOwnerAccess} from './owner-auth.js?v=15';
+import {normalizeAssignments,validateAssignment,assignmentRoles,assignmentStatuses} from './assignments.js?v=15';
+import {setupSync} from './sync-ui.js?v=15';
+import {shareUrl,readSharedPlan} from './sharing.js?v=15';
+import {initialState,roles,validateVisit,emailDraft,validState,applyFirstWeekPlan,confirmedDays,enrichTeachers,visitWarnings,internLunchOverlap} from './model.js?v=15';
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)], key='cuped-planner-v1';
+const writerId=crypto.randomUUID();
+let localSavedAt=0,localWriterId=null;try{localSavedAt=Number(localStorage.getItem('cuped-planner-saved-at'))||0;localWriterId=localStorage.getItem('cuped-planner-writer');}catch{}
 const readOnly=new URLSearchParams(location.search).get('view')==='1'||location.pathname.endsWith('/view.html');
 let sync=null,ownerAccess=null,ownerReady=false,appStarted=false,verifierBusy=false;
 const plannerShell=document.querySelector('#planner-shell');
@@ -24,7 +26,8 @@ if(readOnly||ownerReady)unlockPlanner();
 
 let shared=null,shareError=false;
 if(readOnly)try{shared=await readSharedPlan(location.hash);}catch{shareError=true;}
-let state=shared?.state||initialState();if(!readOnly)try{const saved=JSON.parse(localStorage.getItem(key));if(validState(saved))state=saved;}catch{}
+let hasLocalPlan=false;
+let state=shared?.state||initialState();if(!readOnly)try{const saved=JSON.parse(localStorage.getItem(key));if(validState(saved)){state=saved;hasLocalPlan=true;}}catch{}
 normalizeAssignments(state);
 let cloudLoaded=false;
 if(!shared)state=enrichTeachers(applyFirstWeekPlan(state));if(!readOnly)try{localStorage.setItem(key,JSON.stringify(state));}catch{}
@@ -34,7 +37,7 @@ const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&
 const iso=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
 const fmt=d=>d.toLocaleDateString('en-US',{month:'short',day:'numeric'});
 function notice(t){$('#message').textContent=t;setTimeout(()=>$('#message').textContent='',5000);}
-function save(){if(readOnly||!ownerReady)return false;let stored=true;try{localStorage.setItem(key,JSON.stringify(state));}catch{stored=false;notice('Browser storage is unavailable. Export a backup to keep your changes.');}render();sync?.queueSave(state);return stored;}
+function save(){if(readOnly||!ownerReady)return false;let stored=true;try{localStorage.setItem(key,JSON.stringify(state));localSavedAt=Date.now();localStorage.setItem('cuped-planner-saved-at',String(localSavedAt));localStorage.setItem('cuped-planner-writer',writerId);}catch{stored=false;notice('Browser storage is unavailable. Export a backup to keep your changes.');}render();sync?.queueSave(state);return stored;}
 function render(){
  renderTeamPhoto();
  $('#student-count').innerHTML=`${state.students.length} <small>across A & B days</small>`;
@@ -96,8 +99,8 @@ for(const field of ['date','day','teacher','start','end','room'])$('#visit-form'
 $('#share').onclick=async()=>{
  $('#copy-share').textContent='Copy link';$('#copy-share').disabled=false;$('#open-shared').hidden=false;
  try{
-  await sync?.flush();const live=sync?.getLiveConfig();
-  $('#share-mode').textContent=live?'Live link: viewers see saved changes automatically, usually within 15 seconds.':'Snapshot link: live syncing is not connected or has unsaved changes. This copy will not update; open Live sync to connect.';
+  const live=sync?.getLiveConfig();if(live)sync.flush();
+  $('#share-mode').textContent=live?(sync.isSaved()?'Live link: viewers see saved changes automatically, usually within 15 seconds.':'Live link: new edits are still syncing. Keep this page open until Shared calendar saved; viewers currently see the last confirmed save.'):'Snapshot link: live syncing is not connected. This copy will not update; connect Live sync for automatic updates.';
   $('#share-link').value=live?liveUrl(live):await shareUrl(location.href,state,iso(week));$('#open-shared').href=$('#share-link').value;
  }catch(error){$('#share-mode').textContent=error.message;$('#share-link').value='';$('#copy-share').disabled=true;$('#open-shared').hidden=true;}
  $('#share-dialog').showModal();
@@ -108,7 +111,7 @@ if(readOnly){
  $('[data-tab=emails]').hidden=false;$('[data-tab=emails]').disabled=false;$('#emails').hidden=true;$('#email-dialog').hidden=true;$('#email-recipient').value='';$('#email-body').value='';
  $('.warm .text-link').textContent='Teacher confirmations are managed by the project lead.';$('.warm small').textContent='Open Email drafts to see how to request authorization.';$('#emails .section-bar p').textContent='Access to teacher email drafts requires authorization from the project lead.';
  for(const selector of ['#add-assignment','#sync-settings','#add-visit','#add-rotation','#import','#export','#share'])$(selector).hidden=true;
- $('.storage-note').textContent='View-only schedule • This copy reflects the plan when its link was created. Ask Valerie for a new link after updates.';
+ $('.storage-note').innerHTML='This is a fixed snapshot. <a href="view.html">Open the current live schedule</a> for updates.';
  $('footer').innerHTML='<span class="badge">VIEW-ONLY SCHEDULE</span>';
  $('#view-banner').hidden=false;
  if(shareError){$('#view-banner').textContent='This shared link is invalid. Showing the original proposed schedule; ask Valerie for a new link.';}
@@ -148,10 +151,10 @@ $('#delete-assignment').onclick=()=>{
  if(readOnly||!ownerReady||!confirm('Delete this work assignment?'))return;
  state.assignments=state.assignments.filter(a=>a.id!==$('#assignment-form').elements.id.value);save();$('#assignment-dialog').close();
 };
-sync=await setupSync({readOnly,ownerClient:ownerAccess?.client,getState:()=>structuredClone(state),applyState:incoming=>{
+sync=await setupSync({readOnly,hasLocalPlan,localSavedAt,localWriterId,writerId,ownerClient:ownerAccess?.client,getState:()=>structuredClone(state),applyState:incoming=>{
  if(!validState(incoming))throw Error('The shared schedule has an unsupported format.');cloudLoaded=true;
  state=normalizeAssignments(incoming);if(!state.rotations.some(r=>r.id===rotationId))rotationId=state.rotations.at(-1).id;
- if(!readOnly)try{localStorage.setItem(key,JSON.stringify(state));}catch{}
+ if(!readOnly)try{localStorage.setItem(key,JSON.stringify(state));localSavedAt=Date.now();localStorage.setItem('cuped-planner-saved-at',String(localSavedAt));localStorage.setItem('cuped-planner-writer',writerId);}catch{}
  render();
 },onStatus:text=>{$('#sync-status').textContent=text;
  if(!readOnly)$('.storage-note').textContent=text+' · Export a backup to keep a separate copy.';

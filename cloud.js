@@ -31,8 +31,9 @@ export class CloudCalendar {
   const requestHeaders={apikey:this.config.key,...headers};
   if(body!==undefined)requestHeaders['Content-Type']='application/json';
   if(authenticated)requestHeaders.Authorization='Bearer '+this._session.access_token;
-  let response;try{response=await this.fetcher.call(globalThis,this.config.url+path,{method,headers:requestHeaders,body:body===undefined?undefined:JSON.stringify(body),redirect:'error',credentials:'omit',cache:'no-store'});}catch{throw new Error('Could not reach the shared calendar. Check your connection and project URL.');}
-  const text=await response.text();let result=null;
+  const controller=new AbortController(),timeout=setTimeout(()=>controller.abort(),20000);
+  let response,text;try{response=await this.fetcher.call(globalThis,this.config.url+path,{method,headers:requestHeaders,body:body===undefined?undefined:JSON.stringify(body),redirect:'error',credentials:'omit',cache:'no-store',signal:controller.signal});text=await response.text();}catch{throw new Error('Could not reach the shared calendar. Check your connection and project URL.');}finally{clearTimeout(timeout);}
+  let result=null;
   if(text){try{result=JSON.parse(text);}catch{if(response.ok)throw new Error('The shared calendar returned an unexpected response.');}}
   if(!response.ok){
    if(response.status===401)throw new Error('Sign in again to edit the shared calendar.');
