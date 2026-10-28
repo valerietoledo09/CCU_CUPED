@@ -1,5 +1,6 @@
 import {roles} from './model.js';
 
+export const assignmentRoles = [...roles, 'Field trip'];
 export const assignmentStatuses = ['Planned', 'In progress', 'Done'];
 
 // Older browser saves and exported plans predate calendar work assignments.
@@ -18,7 +19,7 @@ export function validateAssignment(assignment, state) {
   if (!Number.isFinite(date.getTime()) || date.toISOString().slice(0, 10) !== assignment.date) {
     return 'Choose a valid assignment date.';
   }
-  if (typeof assignment.role !== 'string' || !roles.includes(assignment.role)) {
+  if (typeof assignment.role !== 'string' || !assignmentRoles.includes(assignment.role)) {
     return 'Choose a role for this assignment.';
   }
   if (typeof assignment.description !== 'string' || !assignment.description.trim()) {

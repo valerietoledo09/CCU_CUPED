@@ -1,6 +1,6 @@
 import {fileToTeamPhoto,isValidTeamPhoto} from './team-photo.js';
 import {requireOwnerAccess} from './owner-auth.js?v=13';
-import {normalizeAssignments,validateAssignment,assignmentStatuses} from './assignments.js';
+import {normalizeAssignments,validateAssignment,assignmentRoles,assignmentStatuses} from './assignments.js?v=14';
 import {setupSync} from './sync-ui.js?v=13';
 import {shareUrl,readSharedPlan} from './sharing.js?v=13';
 import {initialState,roles,validateVisit,emailDraft,validState,applyFirstWeekPlan,confirmedDays,enrichTeachers,visitWarnings,internLunchOverlap} from './model.js?v=13';
@@ -123,7 +123,7 @@ function openAssignment(a,date){
  if((!readOnly&&!ownerReady)||(readOnly&&!a))return;
  const f=$('#assignment-form');f.reset();$('#assignment-error').textContent='';
  f.elements.id.value=a?.id||'';f.elements.date.value=a?.date||date||'';
- f.elements.role.innerHTML='<option value="">Choose a role</option>'+roles.map(r=>`<option>${esc(r)}</option>`).join('');
+ f.elements.role.innerHTML='<option value="">Choose a role</option>'+assignmentRoles.map(r=>`<option>${esc(r)}</option>`).join('');
  f.elements.status.innerHTML=assignmentStatuses.map(status=>`<option>${esc(status)}</option>`).join('');
  if(a)for(const field of ['role','description','status'])f.elements[field].value=a[field]||'Planned';
  $('#assignment-assignees').innerHTML=state.students.map(student=>`<label class="check-option"><input type="checkbox" name="assignee" value="${esc(student.name)}" ${a?.assignees.includes(student.name)?'checked':''}>${esc(student.name)} <small>${esc(student.day)}-Day</small></label>`).join('');

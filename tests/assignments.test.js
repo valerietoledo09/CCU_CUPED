@@ -1,7 +1,7 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {initialState, roles} from '../model.js';
-import {normalizeAssignments, validateAssignment, assignmentStatuses} from '../assignments.js';
+import {initialState} from '../model.js';
+import {normalizeAssignments, validateAssignment, assignmentRoles, assignmentStatuses} from '../assignments.js';
 
 const assignment = () => ({
   id: 'work-1', date: '2026-10-26', role: 'Teacher Outreach',
@@ -23,7 +23,7 @@ test('migration adds an empty collection without seeding work or changing existi
 
 test('all supported roles and statuses are valid, including mixed A/B teams and dates without school-day rules', () => {
   const state = initialState();
-  for (const role of roles) {
+  for (const role of assignmentRoles) {
     for (const status of assignmentStatuses) {
       assert.equal(validateAssignment({...assignment(), role, status, assignees: ['Ella Corea', 'Jolie Chirino']}, state), '');
     }
