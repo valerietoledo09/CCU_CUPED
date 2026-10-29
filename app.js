@@ -1,4 +1,5 @@
 import {fileToTeamPhoto,isValidTeamPhoto} from './team-photo.js';
+import {requireInternAccess} from './intern-access.js?v=17';
 import {requireOwnerAccess} from './owner-auth.js?v=15';
 import {normalizeAssignments,validateAssignment,assignmentRoles,assignmentStatuses} from './assignments.js?v=15';
 import {setupSync} from './sync-ui.js?v=15';
@@ -20,6 +21,7 @@ function unlockPlanner(){
  if(plannerShell){plannerShell.hidden=false;plannerShell.inert=false;}
  document.querySelector('#auth-loading')?.remove();
 }
+if(readOnly)await requireInternAccess();
 ownerAccess=await requireOwnerAccess({readOnly,onLock:lockPlanner,onUnlock:()=>{if(appStarted)location.reload();}});
 ownerReady=!!ownerAccess?.isAuthorized();
 if(readOnly||ownerReady)unlockPlanner();
@@ -108,6 +110,7 @@ $('#share').onclick=async()=>{
 $('#close-share').onclick=()=>$('#share-dialog').close();
 $('#copy-share').onclick=async()=>{try{await navigator.clipboard.writeText($('#share-link').value);$('#copy-share').textContent='Copied!';}catch{$('#share-link').select();notice('Select and copy the link from the box.');}};
 if(readOnly){
+ document.querySelector('#viewer-owner-login')?.removeAttribute('hidden');
  $('[data-tab=emails]').hidden=false;$('[data-tab=emails]').disabled=false;$('#emails').hidden=true;$('#email-dialog').hidden=true;$('#email-recipient').value='';$('#email-body').value='';
  $('.warm .text-link').textContent='Teacher confirmations are managed by the project lead.';$('.warm small').textContent='Open Email drafts to see how to request authorization.';$('#emails .section-bar p').textContent='Access to teacher email drafts requires authorization from the project lead.';
  for(const selector of ['#add-assignment','#sync-settings','#add-visit','#add-rotation','#import','#export','#share'])$(selector).hidden=true;
