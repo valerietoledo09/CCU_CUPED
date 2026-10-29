@@ -84,3 +84,11 @@ The supplied Coral Reef 2026–27 A/B calendar is represented in `school-calenda
 Choose **Week** or **Month**, use **Go to date**, and choose **Expand calendar** for a larger scrollable view of visits, names, work descriptions, and visit notes. **Collapse calendar** or Escape returns to the normal view. These controls are available to interns and the owner. No recurring presentations are added.
 
 **Mobile Branch Help** and **Tabling with Rory** are available in rotation roles and calendar work assignments. Existing Mobile Branch Promotion and Field trip assignments are retained. Calendar storage keys, the canonical live calendar ID, access-code flow, and sync operations are unchanged.
+
+## Program learning and mobile branch opportunities
+
+`learning-schedule.js` displays all 73 dates from the supplied Coral Reef CUPED Tabling/Mobile Branch/FinEd PDF (revised September 17, 2026), linked in each event's details. These published sessions are a shared calendar overlay, not seeded work assignments or classroom visits; no stored plan or live database rows are rewritten. They appear in owner and intern views, week/month views, expansion, and print. Click a session for its activities, source, and notes.
+
+Classroom presentations and tabling are with Rory. FinEd modules and the Reality Fair are with Emory. Classroom presentation times follow this program document (9:35–11:35 a.m.), separate from intern visits' existing scheduling rules. Tabling and mobile branch times are 10:30 a.m.–12:44 p.m. FinEd and orientation times are unspecified rather than inferred from tabling times. Students are not automatically assigned to staff these opportunities.
+
+The 17 mobile branch visits are highlighted, generally one A-Day and one B-Day per month. December has only December 9 (B-Day) in the source; no second date is invented. November 17, 2026 and February 3, 2027 are printed B-Day in the program PDF but A-Day in the school calendar. Their cards and details flag the discrepancy; A/B filters follow the school calendar while preserving the PDF's original day label. Confirm these two dates with the program team.

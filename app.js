@@ -1,3 +1,4 @@
+import {learningSchedule,learningOn} from './learning-schedule.js?v=21';
 import {schoolDateInfo,calendarRange} from './school-calendar.js';
 import {fileToTeamPhoto,isValidTeamPhoto} from './team-photo.js';
 import {requireInternAccess} from './intern-access.js?v=19';
@@ -43,6 +44,13 @@ const iso=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${Str
 const fmt=d=>d.toLocaleDateString('en-US',{month:'short',day:'numeric'});
 function notice(t){$('#message').textContent=t;setTimeout(()=>$('#message').textContent='',5000);}
 function save(){if(readOnly||!ownerReady)return false;let stored=true;try{localStorage.setItem(key,JSON.stringify(state));localSavedAt=Date.now();localStorage.setItem('cuped-planner-saved-at',String(localSavedAt));localStorage.setItem('cuped-planner-writer',writerId);}catch{stored=false;notice('Browser storage is unavailable. Export a backup to keep your changes.');}render();sync?.queueSave(state);return stored;}
+function openLearning(id){
+ const event=learningSchedule.find(e=>e.id===id);if(!event)return;
+ $('#learning-title').textContent=event.mobile?'Mobile branch & learning':'Learning & opportunities';
+ $('#learning-details').innerHTML=`<p><strong>${esc(event.date)} · ${event.day}-Day</strong></p>${event.activities.map(activity=>`<article class="learning-detail"><h3>${esc(activity.title)}</h3><p>${esc(activity.time)}</p></article>`).join('')}${event.mobile?'<p class="mobile-callout">Take advantage of the mobile branch when it visits on your A or B school day. Dates are listed individually; participation or staffing is not assigned here.</p>':''}${event.dayWarning?`<p class="lunch-warning">${esc(event.dayWarning)}</p>`:''}<p>Program learning and opportunities, separate from intern work assignments and teacher visits.</p><p><small>Source: Coral Reef CUPED Tabling/Mobile Branch/FinEd schedule, revised September 17, 2026. FinEd and orientation times are not specified. <a href="assets/cuped-learning-schedule-2026-27.pdf" target="_blank" rel="noopener">View source schedule</a></small></p>`;
+ $('#learning-dialog').showModal();
+}
+$('#close-learning').onclick=()=>$('#learning-dialog').close();
 function render(){
  renderTeamPhoto();
  $('#student-count').innerHTML=`${state.students.length} <small>across A & B days</small>`;
@@ -56,10 +64,13 @@ function render(){
   const visits=state.visits.filter(v=>v.date===iso(d)&&(filter==='All'||v.day===filter)).sort((a,b)=>a.start.localeCompare(b.start));
   const assignments=state.assignments.filter(a=>a.date===iso(d)&&(filter==='All'||a.assignees.some(n=>state.students.some(s=>s.name===n&&s.day===filter))));
   const visitCards=visits.map(v=>`<button class="visit-card ${v.day==='B'?'b-day':''}" data-visit="${esc(v.id)}"><span class="badge">${esc(v.day)}-DAY · ${esc(v.status)}</span><b>${esc(v.teacher)}</b><span>${esc(v.start)}–${esc(v.end)}${v.room?' · '+esc(v.room):''}</span><p>${v.presenters.map(esc).join('<br>')}</p>${v.notes?`<p class="expanded-visit-notes">${esc(v.notes)}</p>`:''}${visitWarnings(v,state).map(w=>`<small class="lunch-warning">${esc(w)}</small>`).join('')}</button>`).join('');
+  const learning=learningOn(iso(d),filter);
+  const learningCards=learning.map(event=>`<button class="visit-card learning-card ${event.mobile?'mobile-opportunity':''}" data-learning="${event.id}"><span class="badge">${event.mobile?'MOBILE BRANCH OPPORTUNITY':'LEARNING & OPPORTUNITIES'}</span>${event.activities.map(activity=>`<b>${esc(activity.title)}</b><span>${esc(activity.time)}</span>`).join('')}${event.mobile?'<p>Make the most of your school day’s mobile branch visit.</p>':''}${event.dayWarning?`<small class="lunch-warning">${esc(event.dayWarning)}</small>`:''}</button>`).join('');
   const taskCards=assignments.map(a=>`<button class="visit-card assignment-card ${a.status==='Done'?'assignment-done':''}" data-assignment="${esc(a.id)}"><span class="badge">WORK ASSIGNMENT · ${esc(a.status||'Planned')}</span><b>${esc(a.role)}</b><span>${a.assignees.map(esc).join(', ')}</span><p class="assignment-description">${esc(a.description)}</p></button>`).join('');
-  return `<div class="calendar-day ${school.noSchool?'no-school':''} ${calendarMode==='month'&&d.getMonth()!==week.getMonth()?'outside-month':''}"><div class="day-heading"><span>${d.toLocaleDateString('en-US',{weekday:'short'})}</span><strong>${d.getDate()}${school.day?' · '+school.day+'-Day':''}</strong></div><p class="school-day-label">${esc(school.label)}</p>${visitCards}${taskCards}${!visits.length&&!assignments.length?`<div class="empty-day-wrap">${readOnly?'<p class="empty-copy">Nothing scheduled</p>':`${school.noSchool?'':`<button class="empty-day" data-date="${iso(d)}"><span>＋</span>Add a classroom visit</button>`}<button class="empty-assignment quiet" data-assignment-date="${iso(d)}">＋ Assign work</button>`}</div>`:''}</div>`;
+  return `<div class="calendar-day ${school.noSchool?'no-school':''} ${calendarMode==='month'&&d.getMonth()!==week.getMonth()?'outside-month':''}"><div class="day-heading"><span>${d.toLocaleDateString('en-US',{weekday:'short'})}</span><strong>${d.getDate()}${school.day?' · '+school.day+'-Day':''}</strong></div><p class="school-day-label">${esc(school.label)}</p>${learningCards}${visitCards}${taskCards}${!visits.length&&!assignments.length&&!learning.length?`<div class="empty-day-wrap">${readOnly?'<p class="empty-copy">Nothing scheduled</p>':`${school.noSchool?'':`<button class="empty-day" data-date="${iso(d)}"><span>＋</span>Add a classroom visit</button>`}<button class="empty-assignment quiet" data-assignment-date="${iso(d)}">＋ Assign work</button>`}</div>`:''}</div>`;
  }).join('');
  $$('#calendar [data-date]').forEach(b=>b.onclick=()=>openVisit(null,b.dataset.date));
+ $$('[data-learning]').forEach(b=>b.onclick=()=>openLearning(b.dataset.learning));
  $$('[data-visit]').forEach(b=>b.onclick=()=>openVisit(state.visits.find(v=>v.id===b.dataset.visit)));
  $$('[data-assignment]').forEach(b=>b.onclick=()=>openAssignment(state.assignments.find(a=>a.id===b.dataset.assignment)));
  $$('[data-assignment-date]').forEach(b=>b.onclick=()=>openAssignment(null,b.dataset.assignmentDate));
