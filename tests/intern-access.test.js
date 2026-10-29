@@ -27,7 +27,14 @@ test('viewer starts hidden and gate precedes plan loading and sync',async()=>{
  const html=await readFile(new URL('../view.html',import.meta.url),'utf8');
  const app=await readFile(new URL('../app.js',import.meta.url),'utf8');
  assert.match(html,/id="planner-shell" hidden inert/);
- assert.match(html,/href="index.html">Owner login/);
+ assert.match(html,/href="index.html\?owner=1">Owner login/);
  assert.ok(app.indexOf('if(readOnly)await requireInternAccess()')<app.indexOf('let state='));
  assert.ok(app.indexOf('if(readOnly)await requireInternAccess()')<app.indexOf('sync=await setupSync'));
+});
+
+test('root opens viewer by default and owner entry is explicit',async()=>{
+ const app=await readFile(new URL('../app.js',import.meta.url),'utf8');
+ const gate=await readFile(new URL('../intern-access.js',import.meta.url),'utf8');
+ assert.ok(app.includes("pageParams.get('owner')!=='1'"));
+ assert.ok(gate.includes('href="index.html?owner=1"'));
 });

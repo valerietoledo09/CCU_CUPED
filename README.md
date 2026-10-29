@@ -71,6 +71,8 @@ Regression tests cover delayed reads versus newer saves, recovery before the sav
 
 ## Shared intern access
 
-`view.html`, live and snapshot links, and `?view=1` ask for the shared code **cuped2627** before rendering the schedule or starting live sync. The code is requested on each page load and is not stored in browser storage. Change `INTERN_ACCESS_CODE` in `intern-access.js` to rotate it. The top-right **Owner login** button opens the existing protected editor at `index.html`; the intern code never grants editor access.
+`view.html`, live and snapshot links, and `?view=1` ask for the shared code **cuped2627** before rendering the schedule or starting live sync. The code is requested on each page load and is not stored in browser storage. Change `INTERN_ACCESS_CODE` in `intern-access.js` to rotate it. The top-right **Owner login** button opens the existing protected editor at `index.html?owner=1`; the intern code never grants editor access.
 
 This is a static-site entry screen, not server-enforced confidentiality: source files and the existing public-read Supabase calendar remain publicly accessible. Existing plan storage, calendar IDs, sync polling, and owner write permissions are unchanged.
+
+The root address `https://ccu.madebyvale.com/` opens intern access first. **Owner login** opens `index.html?owner=1`, which retains the verified Supabase owner gate. No calendar data or browser storage keys are changed.

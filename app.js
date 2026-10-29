@@ -1,5 +1,5 @@
 import {fileToTeamPhoto,isValidTeamPhoto} from './team-photo.js';
-import {requireInternAccess} from './intern-access.js?v=18';
+import {requireInternAccess} from './intern-access.js?v=19';
 import {requireOwnerAccess} from './owner-auth.js?v=15';
 import {normalizeAssignments,validateAssignment,assignmentRoles,assignmentStatuses} from './assignments.js?v=15';
 import {setupSync} from './sync-ui.js?v=15';
@@ -8,7 +8,8 @@ import {initialState,roles,validateVisit,emailDraft,validState,applyFirstWeekPla
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)], key='cuped-planner-v1';
 const writerId=crypto.randomUUID();
 let localSavedAt=0,localWriterId=null;try{localSavedAt=Number(localStorage.getItem('cuped-planner-saved-at'))||0;localWriterId=localStorage.getItem('cuped-planner-writer');}catch{}
-const readOnly=new URLSearchParams(location.search).get('view')==='1'||location.pathname.endsWith('/view.html');
+const pageParams=new URLSearchParams(location.search);
+const readOnly=pageParams.get('owner')!=='1'||pageParams.get('view')==='1'||location.pathname.endsWith('/view.html');
 let sync=null,ownerAccess=null,ownerReady=false,appStarted=false,verifierBusy=false;
 const plannerShell=document.querySelector('#planner-shell');
 function lockPlanner(){
