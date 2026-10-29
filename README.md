@@ -20,7 +20,7 @@ Click **Share view-only link** and copy the generated URL. It embeds the current
 
 Email drafts: choose **Email drafts** in the navigation, then **View email draft**, or click an existing calendar visit and choose **Prepare email**. Review the recipient/message and choose **Open email app**. Drafts are available only in the editable planner, with a Copy draft option, and are never sent automatically. View-only pages keep the Email drafts tab visible. Opening it shows an authorization-required notice directing requests to Valerie Gutierrez at 0643122@students.dadeschools.net. Its Request authorization link opens an email request; it does not grant access. Draft cards and the visit email action stay blocked, as do draft opening, copying, and email launching in viewer handlers.
 
-Branding uses the EdFed logo downloaded from the official EdFed website, stored locally in assets/edfed-logo.png. Both planner pages display “Created by Valerie Gutierrez.”
+Branding uses a recreated CUPED program logo based on the supplied reference, stored locally in assets/cuped-logo.png. The EdFed logo is no longer displayed. Both planner pages display “Created by Valerie Gutierrez.”
 
 ## Calendar work assignments
 
