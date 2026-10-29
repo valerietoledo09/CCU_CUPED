@@ -1,5 +1,5 @@
 // Shared entry screen for the static viewer; database read permissions are unchanged.
-export const INTERN_ACCESS_CODE = 'CUPED2026';
+export const INTERN_ACCESS_CODE = 'cuped2627';
 export function matchesInternCode(value) {
  return typeof value === 'string' && value.trim() === INTERN_ACCESS_CODE;
 }

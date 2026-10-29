@@ -4,8 +4,8 @@ import {readFile} from 'node:fs/promises';
 import {matchesInternCode,requireInternAccess} from '../intern-access.js';
 test('intern code rejects missing, wrong and owner-like values',()=>{
  for(const value of [null,undefined,'','wrong','cuped2026','owner'])assert.equal(matchesInternCode(value),false);
- assert.equal(matchesInternCode('CUPED2026'),true);
- assert.equal(matchesInternCode(' CUPED2026 '),true);
+ assert.equal(matchesInternCode('cuped2627'),true);
+ assert.equal(matchesInternCode(' cuped2627 '),true);
 });
 test('wrong code keeps viewer locked; valid code resolves without storage or data access',async()=>{
  const previous=globalThis.document;
@@ -19,7 +19,7 @@ test('wrong code keeps viewer locked; valid code resolves without storage or dat
   assert.equal(shell.hidden,true);assert.equal(shell.inert,true);
   form.onsubmit({preventDefault(){}});await Promise.resolve();
   assert.equal(unlocked,false);assert.equal(removed,false);assert.match(error.textContent,/did not match/);
-  input.value='CUPED2026';form.onsubmit({preventDefault(){}});await pending;
+  input.value='cuped2627';form.onsubmit({preventDefault(){}});await pending;
   assert.equal(unlocked,true);assert.equal(removed,true);assert.equal(input.value,'');
  }finally{globalThis.document=previous;}
 });
