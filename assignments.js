@@ -1,4 +1,4 @@
-import {roles} from './model.js';
+import {roles} from './model.js?v=20';
 
 export const assignmentRoles = [...roles, 'Field trip'];
 export const assignmentStatuses = ['Planned', 'In progress', 'Done'];

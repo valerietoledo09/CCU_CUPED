@@ -1,7 +1,8 @@
+import {schoolDateInfo} from './school-calendar.js';
 import {isValidTeamPhoto} from './team-photo.js';
 import {departmentLunch,roomLunch} from './lunch.js';
 import {faculty} from './faculty.js';
-export const roles = ['Project Lead','Teacher Outreach','Student Recruitment','Social Media','Content Creation','Mobile Branch Promotion','Presentations'];
+export const roles = ['Project Lead','Teacher Outreach','Student Recruitment','Social Media','Content Creation','Mobile Branch Promotion','Mobile Branch Help','Tabling with Rory','Presentations'];
 const groups = [
  ['Project Lead','A',['Valerie Gutierrez']],
  ['Teacher Outreach','A',['Aadi Shah','Ella Corea']],['Teacher Outreach','B',['Jolie Chirino','Samantha Ramirez']],
@@ -16,7 +17,9 @@ export const teachers = ['Ms. Vazquez','Mr. Cordova','Mr. Gornail','Ms. Riley','
 export function initialState(){return {version:1,students:structuredClone(students),teachers:teachers.map(name=>({name,email:''})),rotations:[{id:'october',start:'2026-10-19',end:'2026-10-30',assignments:Object.fromEntries(students.map(s=>[s.name,s.role]))}],presenters:[...proposed],visits:[],firstWeekPlanApplied:false};}
 export function validateVisit(v,state,exclude){
  if(!v.date||!v.teacher||!v.start||!v.end||!['A','B'].includes(v.day))return 'Complete the date, teacher, day, and times.';
- if(confirmedDays[v.date]&&confirmedDays[v.date]!==v.day)return 'October 29 is B-Day; October 30 is A-Day.';
+ const school=schoolDateInfo(v.date);
+ if(school.noSchool)return school.label+'. Choose a school day for classroom visits.';
+ if(school.day&&school.day!==v.day)return `${v.date} is ${school.day}-Day. Match the visit to the school calendar.`;
  if(v.start>=v.end)return 'End time must be after start time.';
  if(v.start<'09:40'||v.end>'12:00')return 'Visits must fit the 9:40 a.m.–noon presentation window.';
  const lunch=teacherLunch(v,state);
@@ -57,6 +60,9 @@ export function teacherLunch(v,state){
 export function internLunchOverlap(v){return overlap(v.start,v.end,...lunchWindows.second);}
 export function visitWarnings(v,state){
  const warnings=[];
+ const school=schoolDateInfo(v.date);
+ if(school.noSchool)warnings.push(school.label);
+ else if(school.day&&school.day!==v.day)warnings.push(`School calendar: ${school.day}-Day; check this visit’s day.`);
  if(internLunchOverlap(v))warnings.push('Overlaps CCU second lunch (11:35–12:15). Plan lunch for the presenters.');
  const lunch=teacherLunch(v,state);
  if(!lunch)warnings.push('Teacher lunch is unconfirmed for this school day. Confirm before visiting.');

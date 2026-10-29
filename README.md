@@ -76,3 +76,11 @@ Regression tests cover delayed reads versus newer saves, recovery before the sav
 This is a static-site entry screen, not server-enforced confidentiality: source files and the existing public-read Supabase calendar remain publicly accessible. Existing plan storage, calendar IDs, sync polling, and owner write permissions are unchanged.
 
 The root address `https://ccu.madebyvale.com/` opens intern access first. **Owner login** opens `index.html?owner=1`, which retains the verified Supabase owner gate. No calendar data or browser storage keys are changed.
+
+## School calendar and expanded planning
+
+The supplied Coral Reef 2026–27 A/B calendar is represented in `school-calendar.js`. All 180 instructional dates were checked against the PDF. Each day shows A-Day, B-Day, or a no-school reason, including planning days, holidays, recess, and weekends. Dates outside the supplied year are marked unconfirmed. New classroom visits must match the published A/B day and cannot be scheduled on no-school days. Existing visits are preserved and flagged when they conflict. General work assignments can still be planned on non-school dates.
+
+Choose **Week** or **Month**, use **Go to date**, and choose **Expand calendar** for a larger scrollable view of visits, names, work descriptions, and visit notes. **Collapse calendar** or Escape returns to the normal view. These controls are available to interns and the owner. No recurring presentations are added.
+
+**Mobile Branch Help** and **Tabling with Rory** are available in rotation roles and calendar work assignments. Existing Mobile Branch Promotion and Field trip assignments are retained. Calendar storage keys, the canonical live calendar ID, access-code flow, and sync operations are unchanged.
