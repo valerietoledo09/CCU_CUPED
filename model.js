@@ -16,6 +16,7 @@ export const proposed = ['Addisyn Hinds','Aadi Shah','Rudy Ramos','Yan Lastre','
 export const teachers = ['Ms. Vazquez','Mr. Cordova','Mr. Gornail','Ms. Riley','Ms. Depool','Ms. Mercurius','Ms. Macqouid','Mr. McGraw','Ms. Medina','Ms. Salinas','Ms. Eden','Mr. Lorenzo'];
 export function initialState(){return {version:1,students:structuredClone(students),teachers:teachers.map(name=>({name,email:''})),rotations:[{id:'october',start:'2026-10-19',end:'2026-10-30',assignments:Object.fromEntries(students.map(s=>[s.name,s.role]))}],presenters:[...proposed],visits:[],firstWeekPlanApplied:false};}
 export function validateVisit(v,state,exclude){
+ if(v.status==='Pending'&&!v.date){if(!v.teacher||!['A','B'].includes(v.day))return 'Choose the teacher and A/B day.';return ''; }
  if(!v.date||!v.teacher||!v.start||!v.end||!['A','B'].includes(v.day))return 'Complete the date, teacher, day, and times.';
  const school=schoolDateInfo(v.date);
  if(school.noSchool)return school.label+'. Choose a school day for classroom visits.';

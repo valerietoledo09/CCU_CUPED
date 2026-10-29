@@ -1,3 +1,4 @@
+import {moveGornailToPending,pendingVisits} from './pending-visits.js?v=22';
 import {learningSchedule,learningOn} from './learning-schedule.js?v=21';
 import {schoolDateInfo,calendarRange} from './school-calendar.js';
 import {fileToTeamPhoto,isValidTeamPhoto} from './team-photo.js';
@@ -6,7 +7,7 @@ import {requireOwnerAccess} from './owner-auth.js?v=15';
 import {normalizeAssignments,validateAssignment,assignmentRoles,assignmentStatuses} from './assignments.js?v=20';
 import {setupSync} from './sync-ui.js?v=15';
 import {shareUrl,readSharedPlan} from './sharing.js?v=15';
-import {initialState,roles,validateVisit,emailDraft,validState,applyFirstWeekPlan,enrichTeachers,visitWarnings,internLunchOverlap} from './model.js?v=20';
+import {initialState,roles,validateVisit,emailDraft,validState,applyFirstWeekPlan,enrichTeachers,visitWarnings,internLunchOverlap} from './model.js?v=22';
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)], key='cuped-planner-v1';
 const writerId=crypto.randomUUID();
 let localSavedAt=0,localWriterId=null;try{localSavedAt=Number(localStorage.getItem('cuped-planner-saved-at'))||0;localWriterId=localStorage.getItem('cuped-planner-writer');}catch{}
@@ -36,6 +37,7 @@ let state=shared?.state||initialState();if(!readOnly)try{const saved=JSON.parse(
 normalizeAssignments(state);
 let cloudLoaded=false;
 if(!shared)state=enrichTeachers(applyFirstWeekPlan(state));if(!readOnly)try{localStorage.setItem(key,JSON.stringify(state));}catch{}
+if(!shared)moveGornailToPending(state);
 let calendarMode='week';
 let week=new Date(2026,9,26), filter='All',rotationId=state.rotations.at(-1).id;
 if(shared)week=new Date(shared.week+'T12:00:00');
@@ -53,6 +55,11 @@ function openLearning(id){
 $('#close-learning').onclick=()=>$('#learning-dialog').close();
 function render(){
  renderTeamPhoto();
+ const pending=pendingVisits(state,filter);
+ $('#pending-visits').hidden=!pending.length;
+ $('#pending-visit-list').innerHTML=pending.map(v=>`<button class="visit-card pending-visit" data-pending-visit="${esc(v.id)}"><span class="badge">PENDING · ${esc(v.day)}-DAY · DATE TO BE CONFIRMED</span><b>${esc(v.teacher)}</b><p>${esc(v.notes)}</p><span>${v.presenters.map(esc).join(', ')}</span><small>${readOnly?'Awaiting a new date from the project lead.':'Open to choose a new date and time.'}</small></button>`).join('');
+ $$('[data-pending-visit]').forEach(b=>b.onclick=()=>openVisit(state.visits.find(v=>v.id===b.dataset.pendingVisit)));
+
  $('#student-count').innerHTML=`${state.students.length} <small>across A & B days</small>`;
  $('#presenter-count').innerHTML=`${state.presenters.length} <small>ready for the next rotation</small>`;
  $('#teacher-count').innerHTML=`${state.teachers.length} <small>classrooms to connect with</small>`;
@@ -83,15 +90,18 @@ function render(){
  $$('[data-presenter]').forEach(x=>x.onchange=()=>{const name=state.students[x.dataset.presenter].name;state.presenters=x.checked?[...new Set([...state.presenters,name])]:state.presenters.filter(n=>n!==name);save();});
  $('#teacher-cards').innerHTML=state.teachers.map((t,i)=>`<article class="panel"><span class="badge">CLASSROOM PARTNER</span><h3>${esc(t.name)}</h3><p>${esc(t.fullName||'Identity unconfirmed')}<br>${esc(t.department||'Department unconfirmed')}</p><label>Email address<input data-email="${i}" type="email" value="${esc(t.email)}" placeholder="Add email address"></label><div class="form-grid">${['A','B'].map(day=>`<label>${day}-Day class lunch<select data-lunch="${i}" data-school-day="${day}">${[['unknown','Unconfirmed'],['first','First · 10:35–11:15'],['second','Second · 11:35–12:15']].map(([value,label])=>`<option value="${value}" ${t.lunch?.[day]===value?'selected':''}>${label}</option>`).join('')}</select></label>`).join('')}</div><small>${state.visits.filter(v=>v.teacher===t.name).length} visits planned</small></article>`).join('');$$('[data-email]').forEach(x=>x.onchange=()=>{if(!x.checkValidity()){x.reportValidity();return;}state.teachers[x.dataset.email].email=x.value.trim();save();notice('Teacher email saved.');});$$('[data-lunch]').forEach(x=>x.onchange=()=>{state.teachers[x.dataset.lunch].lunch[x.dataset.schoolDay]=x.value;save();notice('Lunch updated. Check existing visits for any conflicts.');});
  $('#email-authorization').hidden=!readOnly;$('#draft-list').hidden=readOnly;
- $('#draft-list').innerHTML=readOnly?'':state.visits.filter(v=>v.status!=='Cancelled').sort((a,b)=>(a.date+a.start).localeCompare(b.date+b.start)).map(v=>`<article class="panel"><span class="badge">${esc(v.day)}-DAY · ${esc(v.date)}</span><h3>${esc(v.teacher)}</h3><p>${esc(v.start)}–${esc(v.end)} · ${v.presenters.map(esc).join(', ')}</p><button class="primary" data-draft="${esc(v.id)}">View email draft</button></article>`).join('')||'<p>No visits yet. Schedule a visit to prepare an email draft.</p>';
+ $('#draft-list').innerHTML=readOnly?'':state.visits.filter(v=>v.status!=='Cancelled'&&v.status!=='Pending').sort((a,b)=>(a.date+a.start).localeCompare(b.date+b.start)).map(v=>`<article class="panel"><span class="badge">${esc(v.day)}-DAY · ${esc(v.date)}</span><h3>${esc(v.teacher)}</h3><p>${esc(v.start)}–${esc(v.end)} · ${v.presenters.map(esc).join(', ')}</p><button class="primary" data-draft="${esc(v.id)}">View email draft</button></article>`).join('')||'<p>No visits yet. Schedule a visit to prepare an email draft.</p>';
  $$('[data-draft]').forEach(b=>b.onclick=()=>openEmail(state.visits.find(v=>v.id===b.dataset.draft)));
  if(readOnly){$$('#student-rows input, #student-rows select, #teacher-cards input, #teacher-cards select').forEach(x=>x.disabled=true);$$('.empty-day').forEach(x=>{x.disabled=true;x.innerHTML='No visits scheduled';});}
 }
 function presenterOptions(selected=[]){const day=$('#visit-form').elements.day.value;$('#presenter-options').innerHTML=state.students.filter(s=>s.day===day).map(s=>`<label class="check-option"><input type="checkbox" name="presenter" value="${esc(s.name)}" ${selected.includes(s.name)?'checked':''}>${esc(s.name)}${state.presenters.includes(s.name)?' <small>proposed</small>':''}</label>`).join('');}
-function openVisit(v,date){if(!readOnly&&!ownerReady)return;if(readOnly&&!v)return;const f=$('#visit-form');f.reset();$('#form-error').textContent='';$('#visit-teacher').innerHTML='<option value="">Select a teacher</option>'+state.teachers.map(t=>`<option>${esc(t.name)}</option>`).join('');f.elements.id.value=v?.id||'';f.elements.date.value=v?.date||date||'';for(const k of ['day','start','end','teacher','room','status','notes'])if(v)f.elements[k].value=v[k]||'';if(!v&&schoolDateInfo(f.elements.date.value).day)f.elements.day.value=schoolDateInfo(f.elements.date.value).day;presenterOptions(v?.presenters||state.presenters);f.elements.lunchAcknowledged.checked=!!v?.lunchAcknowledged;updateLunchWarnings();$('#dialog-title').textContent=v?'Edit classroom visit':'Schedule a visit';$('#delete-visit').hidden=!v;$('#email-visit').hidden=readOnly||!v;if(readOnly){$('#dialog-title').textContent='Classroom visit details';$$('#visit-form input, #visit-form select, #visit-form textarea').forEach(x=>x.disabled=true);$('#delete-visit').hidden=true;$('#email-visit').hidden=readOnly||!v;$('#visit-form [type=submit]').hidden=true;$('#close-dialog').textContent='Close';}$('#visit-dialog').showModal();}
+function openVisit(v,date){if(!readOnly&&!ownerReady)return;if(readOnly&&!v)return;const f=$('#visit-form');f.reset();$('#form-error').textContent='';$('#visit-teacher').innerHTML='<option value="">Select a teacher</option>'+state.teachers.map(t=>`<option>${esc(t.name)}</option>`).join('');f.elements.id.value=v?.id||'';f.elements.date.value=v?.date||date||'';for(const k of ['day','start','end','teacher','room','status','notes'])if(v)f.elements[k].value=v[k]||'';if(!v&&schoolDateInfo(f.elements.date.value).day)f.elements.day.value=schoolDateInfo(f.elements.date.value).day;presenterOptions(v?.presenters||state.presenters);f.elements.lunchAcknowledged.checked=!!v?.lunchAcknowledged;updateLunchWarnings();$('#dialog-title').textContent=v?'Edit classroom visit':'Schedule a visit';$('#delete-visit').hidden=!v;$('#email-visit').hidden=readOnly||!v||v.status==='Pending';if(readOnly){$('#dialog-title').textContent='Classroom visit details';$$('#visit-form input, #visit-form select, #visit-form textarea').forEach(x=>x.disabled=true);$('#delete-visit').hidden=true;$('#email-visit').hidden=readOnly||!v||v.status==='Pending';$('#visit-form [type=submit]').hidden=true;$('#close-dialog').textContent='Close';}updateVisitRequirements();$('#visit-dialog').showModal();}
 $('#visit-form').elements.date.onchange=()=>{const day=schoolDateInfo($('#visit-form').elements.date.value).day;if(day){$('#visit-form').elements.day.value=day;presenterOptions(state.presenters);}};
 $('#visit-form').elements.day.onchange=()=>presenterOptions(state.presenters);
-$('#visit-form').onsubmit=e=>{e.preventDefault();if(readOnly||!ownerReady)return;const f=e.target;const v=Object.fromEntries(new FormData(f));v.presenters=new FormData(f).getAll('presenter');delete v.presenter;v.lunchAcknowledged=f.elements.lunchAcknowledged.checked;const error=validateVisit(v,state,v.id);if(error){$('#form-error').textContent=error;return;}v.id=v.id||crypto.randomUUID();const i=state.visits.findIndex(x=>x.id===v.id);if(i<0)state.visits.push(v);else state.visits[i]=v;const d=new Date(v.date+'T12:00:00');d.setDate(d.getDate()-((d.getDay()+6)%7));week=d;save();$('#visit-dialog').close();notice('Classroom visit saved.');};
+$('#visit-form').elements.status.onchange=updateVisitRequirements;
+function updateVisitRequirements(){const f=$('#visit-form');for(const name of ['date','start','end'])f.elements[name].required=f.elements.status.value!=='Pending';}
+
+$('#visit-form').onsubmit=e=>{e.preventDefault();if(readOnly||!ownerReady)return;const f=e.target;const v=Object.fromEntries(new FormData(f));v.presenters=new FormData(f).getAll('presenter');delete v.presenter;v.lunchAcknowledged=f.elements.lunchAcknowledged.checked;if(v.status==='Pending'){v.date='';v.start='';v.end='';}const error=validateVisit(v,state,v.id);if(error){$('#form-error').textContent=error;return;}v.id=v.id||crypto.randomUUID();const i=state.visits.findIndex(x=>x.id===v.id);if(i<0)state.visits.push(v);else state.visits[i]=v;if(v.date){const d=new Date(v.date+'T12:00:00');d.setDate(d.getDate()-((d.getDay()+6)%7));week=d;}save();$('#visit-dialog').close();notice('Classroom visit saved.');};
 $('#delete-visit').onclick=()=>{if(readOnly||!ownerReady)return;if(!confirm('Delete this classroom visit?'))return;state.visits=state.visits.filter(v=>v.id!==$('#visit-form').elements.id.value);save();$('#visit-dialog').close();};
 function openEmail(v){if(readOnly||!ownerReady||!v)return;$('#email-recipient').value=state.teachers.find(t=>t.name===v.teacher)?.email||'';$('#email-body').value=emailDraft(v);$('#copy-email').textContent='Copy draft';$('#email-dialog').showModal();}
 $('#email-visit').onclick=()=>openEmail(state.visits.find(v=>v.id===$('#visit-form').elements.id.value));
@@ -176,7 +186,10 @@ $('#delete-assignment').onclick=()=>{
 };
 sync=await setupSync({readOnly,hasLocalPlan,localSavedAt,localWriterId,writerId,ownerClient:ownerAccess?.client,getState:()=>structuredClone(state),applyState:incoming=>{
  if(!validState(incoming))throw Error('The shared schedule has an unsupported format.');cloudLoaded=true;
- state=normalizeAssignments(incoming);if(!state.rotations.some(r=>r.id===rotationId))rotationId=state.rotations.at(-1).id;
+ state=normalizeAssignments(incoming);
+ const movedToPending=moveGornailToPending(state);
+ if(movedToPending&&!readOnly)setTimeout(()=>{if(ownerReady)save();},0);
+ if(!state.rotations.some(r=>r.id===rotationId))rotationId=state.rotations.at(-1).id;
  if(!readOnly)try{localStorage.setItem(key,JSON.stringify(state));localSavedAt=Date.now();localStorage.setItem('cuped-planner-saved-at',String(localSavedAt));localStorage.setItem('cuped-planner-writer',writerId);}catch{}
  render();
 },onStatus:text=>{$('#sync-status').textContent=text;
