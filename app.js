@@ -1,5 +1,5 @@
 import {fileToTeamPhoto,isValidTeamPhoto} from './team-photo.js';
-import {requireInternAccess} from './intern-access.js?v=17';
+import {requireInternAccess} from './intern-access.js?v=18';
 import {requireOwnerAccess} from './owner-auth.js?v=15';
 import {normalizeAssignments,validateAssignment,assignmentRoles,assignmentStatuses} from './assignments.js?v=15';
 import {setupSync} from './sync-ui.js?v=15';
