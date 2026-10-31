@@ -1,4 +1,4 @@
-import {blankRotation,previousRotation} from './rotations.js?v=26';
+import {blankRotation,previousRotation,latestRotation} from './rotations.js?v=27';
 import {applyNewPresentationTeams,changeSnapshot,recordCalendarChanges,recentUpdates,teacherProgress} from './calendar-updates.js?v=25';
 import {moveGornailToPending,pendingVisits} from './pending-visits.js?v=22';
 import {learningSchedule,learningOn} from './learning-schedule.js?v=21';
@@ -46,7 +46,8 @@ const updateSeenKey='cuped-seen-calendar-updates-v1';
 let seenUpdates=new Set();try{seenUpdates=new Set(JSON.parse(localStorage.getItem(updateSeenKey))||[]);}catch{}
 let announcedUpdates=new Set();
 let calendarMode='week';
-let week=new Date(2026,9,26), filter='All',rotationId=state.rotations.at(-1).id;
+let viewerPickedRotation=false;
+let week=new Date(2026,9,26), filter='All',rotationId=latestRotation(state.rotations).id;
 if(shared)week=new Date(shared.week+'T12:00:00');
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const iso=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
@@ -138,8 +139,8 @@ function setCalendarExpanded(expanded){document.body.classList.toggle('calendar-
 $('#expand-calendar').onclick=()=>setCalendarExpanded(!document.body.classList.contains('calendar-expanded'));
 document.addEventListener('keydown',e=>{if(e.key==='Escape')setCalendarExpanded(false);});
  $$('[data-filter]').forEach(b=>b.onclick=()=>{filter=b.dataset.filter;$$('[data-filter]').forEach(x=>x.classList.toggle('selected',x===b));render();});
-$$('[data-tab]').forEach(b=>b.onclick=()=>{$$('.tab').forEach(t=>t.hidden=t.id!==b.dataset.tab);$$('[data-tab]').forEach(x=>x.classList.toggle('active',x===b));$('#breadcrumb').textContent=b.textContent.slice(3).trim();$('.page-heading').classList.toggle('team-heading',b.dataset.tab==='team');renderTeamPhoto();$('#title').innerHTML=b.dataset.tab==='schedule'?'Your CCU Schedule, Simplified.':b.dataset.tab==='team'?'Work together.<br>Teach one another.':b.dataset.tab==='emails'?(readOnly?'Email drafts.<br>Authorization required.':'Your next visit.<br>One email away.'):'Good connections.<br>Great classrooms.';});
-$('#rotation-select').onchange=e=>{rotationId=e.target.value;render();};
+$$('[data-tab]').forEach(b=>b.onclick=()=>{if(readOnly&&b.dataset.tab==='team'){viewerPickedRotation=false;rotationId=latestRotation(state.rotations).id;render();}$$('.tab').forEach(t=>t.hidden=t.id!==b.dataset.tab);$$('[data-tab]').forEach(x=>x.classList.toggle('active',x===b));$('#breadcrumb').textContent=b.textContent.slice(3).trim();$('.page-heading').classList.toggle('team-heading',b.dataset.tab==='team');renderTeamPhoto();$('#title').innerHTML=b.dataset.tab==='schedule'?'Your CCU Schedule, Simplified.':b.dataset.tab==='team'?'Work together.<br>Teach one another.':b.dataset.tab==='emails'?(readOnly?'Email drafts.<br>Authorization required.':'Your next visit.<br>One email away.'):'Good connections.<br>Great classrooms.';});
+$('#rotation-select').onchange=e=>{viewerPickedRotation=true;rotationId=e.target.value;render();};
 $('#add-rotation').onclick=()=>{const f=$('#rotation-form');const last=state.rotations.at(-1);const start=new Date(last.end+'T12:00:00');start.setDate(start.getDate()+3);f.elements.start.value=iso(start);const end=new Date(start);end.setDate(end.getDate()+11);f.elements.end.value=iso(end);$('#rotation-error').textContent='';$('#rotation-dialog').showModal();};
 $('#close-rotation').onclick=()=>$('#rotation-dialog').close();$('#rotation-form').onsubmit=e=>{e.preventDefault();if(readOnly||!ownerReady)return;const f=e.target,start=f.elements.start.value,end=f.elements.end.value;if(end<start||state.rotations.some(r=>r.start<=end&&r.end>=start)){$('#rotation-error').textContent='Choose an end after the start, without overlapping an existing rotation.';return;}const r=blankRotation(state.students,start,end);state.rotations.push(r);state.rotations.sort((a,b)=>a.start.localeCompare(b.start));rotationId=r.id;save();$('#rotation-dialog').close();};
 $('#print').onclick=()=>window.print();$('#export').onclick=()=>{const url=URL.createObjectURL(new Blob([JSON.stringify(state,null,2)],{type:'application/json'}));const a=document.createElement('a');a.href=url;a.download='cuped-schedule.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);};$('#import').onclick=()=>$('#import-file').click();$('#import-file').onchange=async e=>{try{const incoming=JSON.parse(await e.target.files[0].text());if(!validState(incoming))throw Error('Invalid schedule');if(!confirm('Replace the plan in this browser with this backup? Export your current plan first if needed.'))return;state=normalizeAssignments(enrichTeachers(incoming));rotationId=state.rotations.at(-1).id;save();notice('Schedule imported.');}catch{notice('Could not import this file. Choose a CUPED JSON backup.');}e.target.value='';};render();
@@ -214,7 +215,7 @@ sync=await setupSync({readOnly,hasLocalPlan,localSavedAt,localWriterId,writerId,
  const teamsUpdated=applyNewPresentationTeams(state);
  changeBaseline=changeSnapshot(state);
  if((movedToPending||teamsUpdated)&&!readOnly)setTimeout(()=>{if(ownerReady)save();},0);
- if(!state.rotations.some(r=>r.id===rotationId))rotationId=state.rotations.at(-1).id;
+ if((readOnly&&!viewerPickedRotation)||!state.rotations.some(r=>r.id===rotationId))rotationId=latestRotation(state.rotations).id;
  if(!readOnly)try{localStorage.setItem(key,JSON.stringify(state));localSavedAt=Date.now();localStorage.setItem('cuped-planner-saved-at',String(localSavedAt));localStorage.setItem('cuped-planner-writer',writerId);}catch{}
  render();
 },onStatus:text=>{$('#sync-status').textContent=text;
