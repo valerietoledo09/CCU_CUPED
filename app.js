@@ -62,7 +62,7 @@ $('#close-learning').onclick=()=>$('#learning-dialog').close();
 function renderUpdates(){
  const updates=recentUpdates(state);const unread=updates.filter(entry=>!seenUpdates.has(entry.id));
  $('#updates-count').textContent=String(unread.length);
- $('#updates-summary').textContent=unread.length?`${unread.length} new calendar summary${unread.length===1?'':'s'} — open to see what changed`:'Recent calendar changes';
+ $('#updates-summary').textContent=unread.length?`${unread.length} new calendar ${unread.length===1?'summary':'summaries'} — open to see what changed`:'Recent calendar changes';
  $('#calendar-update-list').innerHTML=updates.map(entry=>`<li><time>${esc(entry.at.length===10?entry.at:new Date(entry.at).toLocaleString())}</time><ul>${entry.messages.map(message=>`<li>${esc(message)}</li>`).join('')}</ul></li>`).join('')||'<li>New calendar edits will appear here.</li>';
  const fresh=unread.filter(entry=>!announcedUpdates.has(entry.id));
  if(fresh.length){$('#calendar-update-alert').hidden=false;$('#calendar-update-alert-text').textContent=fresh[0].messages[0]+(fresh.length>1?` Plus ${fresh.length-1} more update(s).`:'');}
