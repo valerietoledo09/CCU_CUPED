@@ -15,7 +15,7 @@ test('new teams preserve completed visit presenters, dates and rotations; later 
 test('status and date changes generate readable, persisted updates without duplicate render notifications',()=>{
  const state=applyFirstWeekPlan(initialState()),before=changeSnapshot(state);
  state.visits[0].status='Completed';state.visits[1].date='2026-11-02';
- assert.ok(describeChanges(before,state).some(m=>m.includes('Planned → Completed')));
+ assert.ok(describeChanges(before,state).some(m=>m.includes('marked Completed')));
  assert.ok(recordCalendarChanges(before,state,{id:'change1',at:'2026-10-30T20:00:00Z'}));
  assert.equal(recentUpdates(state).length,1);assert.equal(recordCalendarChanges(changeSnapshot(state),state),false);
  state.visits.pop();assert.ok(describeChanges(before,state).some(m=>m.includes('removed')));
@@ -28,5 +28,19 @@ test('independent device notifications merge without creating calendar conflicts
  const base=initialState(),local=structuredClone(base),remote=structuredClone(base);
  local.calendarUpdates={one:{id:'one',at:'2026-10-30',messages:['one']}};
  remote.calendarUpdates={two:{id:'two',at:'2026-10-30',messages:['two']}};
- const result=mergePlanStates(base,local,remote);assert.deepEqual(result.conflicts,[]);assert.equal(recentUpdates(result.state).length,2);
+ const result=mergePlanStates(base,local,remote);assert.deepEqual(result.conflicts,[]);assert.equal(recentUpdates(result.state).length,1);
+});
+
+test('small text edits stay quiet and related edits form one daily summary',()=>{
+ const state=applyFirstWeekPlan(initialState());let before=changeSnapshot(state);
+ state.visits[0].notes='Fix a typo';state.teachers[0].email='corrected@example.org';
+ assert.equal(recordCalendarChanges(before,state),false);
+ before=changeSnapshot(state);state.visits[0].status='Confirmed';
+ recordCalendarChanges(before,state,{id:'a',at:'2026-10-30T17:00:00Z'});
+ before=changeSnapshot(state);state.visits[0].status='Completed';state.visits[1].date='2026-11-02';
+ recordCalendarChanges(before,state,{id:'b',at:'2026-10-30T18:00:00Z'});
+ const updates=recentUpdates(state);assert.equal(updates.length,1);assert.equal(updates[0].messages.length,2);
+ assert.ok(updates[0].messages.includes('Ms. Vazquez: marked Completed.'));
+ assert.ok(!updates[0].messages.some(m=>m.includes('Confirmed')));
+ assert.ok(updates[0].messages.some(m=>m.includes('rescheduled to 2026-11-02')));
 });
