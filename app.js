@@ -1,3 +1,4 @@
+import {applyNewPresentationTeams,changeSnapshot,recordCalendarChanges,recentUpdates,teacherProgress} from './calendar-updates.js?v=24';
 import {moveGornailToPending,pendingVisits} from './pending-visits.js?v=22';
 import {learningSchedule,learningOn} from './learning-schedule.js?v=21';
 import {schoolDateInfo,calendarRange} from './school-calendar.js';
@@ -38,6 +39,11 @@ normalizeAssignments(state);
 let cloudLoaded=false;
 if(!shared)state=enrichTeachers(applyFirstWeekPlan(state));if(!readOnly)try{localStorage.setItem(key,JSON.stringify(state));}catch{}
 if(!shared)moveGornailToPending(state);
+if(!shared)applyNewPresentationTeams(state);
+let changeBaseline=changeSnapshot(state);
+const updateSeenKey='cuped-seen-calendar-updates-v1';
+let seenUpdates=new Set();try{seenUpdates=new Set(JSON.parse(localStorage.getItem(updateSeenKey))||[]);}catch{}
+let announcedUpdates=new Set();
 let calendarMode='week';
 let week=new Date(2026,9,26), filter='All',rotationId=state.rotations.at(-1).id;
 if(shared)week=new Date(shared.week+'T12:00:00');
@@ -45,7 +51,7 @@ const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&
 const iso=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
 const fmt=d=>d.toLocaleDateString('en-US',{month:'short',day:'numeric'});
 function notice(t){$('#message').textContent=t;setTimeout(()=>$('#message').textContent='',5000);}
-function save(){if(readOnly||!ownerReady)return false;let stored=true;try{localStorage.setItem(key,JSON.stringify(state));localSavedAt=Date.now();localStorage.setItem('cuped-planner-saved-at',String(localSavedAt));localStorage.setItem('cuped-planner-writer',writerId);}catch{stored=false;notice('Browser storage is unavailable. Export a backup to keep your changes.');}render();sync?.queueSave(state);return stored;}
+function save(){if(readOnly||!ownerReady)return false;recordCalendarChanges(changeBaseline,state);changeBaseline=changeSnapshot(state);let stored=true;try{localStorage.setItem(key,JSON.stringify(state));localSavedAt=Date.now();localStorage.setItem('cuped-planner-saved-at',String(localSavedAt));localStorage.setItem('cuped-planner-writer',writerId);}catch{stored=false;notice('Browser storage is unavailable. Export a backup to keep your changes.');}render();sync?.queueSave(state);return stored;}
 function openLearning(id){
  const event=learningSchedule.find(e=>e.id===id);if(!event)return;
  $('#learning-title').textContent=event.mobile?'Mobile branch & learning':'Learning & opportunities';
@@ -53,7 +59,20 @@ function openLearning(id){
  $('#learning-dialog').showModal();
 }
 $('#close-learning').onclick=()=>$('#learning-dialog').close();
+function renderUpdates(){
+ const updates=recentUpdates(state);const unread=updates.filter(entry=>!seenUpdates.has(entry.id));
+ $('#updates-count').textContent=String(unread.length);
+ $('#updates-summary').textContent=unread.length?`${unread.length} new calendar update${unread.length===1?'':'s'} — open to see what changed`:'Recent calendar changes';
+ $('#calendar-update-list').innerHTML=updates.map(entry=>`<li><time>${esc(entry.at.length===10?entry.at:new Date(entry.at).toLocaleString())}</time><ul>${entry.messages.map(message=>`<li>${esc(message)}</li>`).join('')}</ul></li>`).join('')||'<li>New calendar edits will appear here.</li>';
+ const fresh=unread.filter(entry=>!announcedUpdates.has(entry.id));
+ if(fresh.length){$('#calendar-update-alert').hidden=false;$('#calendar-update-alert-text').textContent=fresh[0].messages[0]+(fresh.length>1?` Plus ${fresh.length-1} more update(s).`:'');}
+ updates.forEach(entry=>announcedUpdates.add(entry.id));
+}
+$('#mark-updates-read').onclick=()=>{recentUpdates(state).forEach(entry=>seenUpdates.add(entry.id));try{localStorage.setItem(updateSeenKey,JSON.stringify([...seenUpdates].slice(-200)));}catch{}$('#calendar-update-alert').hidden=true;renderUpdates();};
+$('#dismiss-update-alert').onclick=()=>{$('#calendar-update-alert').hidden=true;};
+$('#view-updates').onclick=()=>{setCalendarExpanded(false);$('#calendar-updates').open=true;$('#calendar-updates').scrollIntoView({behavior:'smooth',block:'nearest'});};
 function render(){
+ renderUpdates();
  renderTeamPhoto();
  const pending=pendingVisits(state,filter);
  $('#pending-visits').hidden=!pending.length;
@@ -63,7 +82,9 @@ function render(){
  $('#student-count').innerHTML=`${state.students.length} <small>across A & B days</small>`;
  $('#presenter-count').innerHTML=`${state.presenters.length} <small>ready for the next rotation</small>`;
  $('#teacher-count').innerHTML=`${state.teachers.length} <small>classrooms to connect with</small>`;
- $('#confirmed-count').innerHTML=`${state.visits.filter(v=>v.status==='Confirmed').length} <small>teacher confirmed</small>`;
+ const confirmed=teacherProgress(state,'Confirmed'),completed=teacherProgress(state,'Completed');
+ $('#confirmed-count').innerHTML=`${confirmed.teachers} <small>${confirmed.visits} confirmed visit(s)</small>`;
+ $('#completed-count').innerHTML=`${completed.teachers} <small>${completed.visits} completed visit(s)</small>`;
  const saturday=new Date(week);saturday.setDate(week.getDate()+5);const sunday=new Date(week);sunday.setDate(week.getDate()+6);const hasWeekend=[...state.visits,...state.assignments].some(item=>item.date>=iso(saturday)&&item.date<=iso(sunday));const range=calendarRange(week,calendarMode,hasWeekend);const dayCount=range.count;$('#calendar').style.gridTemplateColumns=`repeat(${range.columns},minmax(180px,1fr))`;$('#calendar').classList.toggle('month-calendar',calendarMode==='month');
  const friday=new Date(week);friday.setDate(week.getDate()+dayCount-1);$('#week-label').textContent=calendarMode==='month'?week.toLocaleDateString('en-US',{month:'long',year:'numeric'}):`${fmt(week)} – ${fmt(friday)}, ${week.getFullYear()}`;$('#calendar-date').value=iso(week);
  $('#calendar').innerHTML=Array.from({length:dayCount},(_,i)=>{
@@ -81,7 +102,7 @@ function render(){
  $$('[data-visit]').forEach(b=>b.onclick=()=>openVisit(state.visits.find(v=>v.id===b.dataset.visit)));
  $$('[data-assignment]').forEach(b=>b.onclick=()=>openAssignment(state.assignments.find(a=>a.id===b.dataset.assignment)));
  $$('[data-assignment-date]').forEach(b=>b.onclick=()=>openAssignment(null,b.dataset.assignmentDate));
- $('#presenter-teams').innerHTML=['A','B'].map(day=>`<div><h3><span class="day-dot ${day==='B'?'purple':''}"></span>${day}-Day <small>${state.students.filter(s=>s.day===day&&state.presenters.includes(s.name)).length} presenters</small></h3>${state.students.filter(s=>s.day===day&&state.presenters.includes(s.name)).map(s=>`<div class="person"><span class="mini-avatar">${esc(s.name.split(' ').map(n=>n[0]).slice(0,2).join(''))}</span>${esc(s.name)}</div>`).join('')}</div>`).join('');
+ $('#presenter-teams').innerHTML=['A','B'].map(day=>`<div><h3><span class="day-dot ${day==='B'?'purple':''}"></span>${day}-Day <small>${state.students.filter(s=>s.day===day&&state.presenters.includes(s.name)).length} presenters</small></h3>${state.presenters.map(name=>state.students.find(s=>s.name===name&&s.day===day)).filter(Boolean).map(s=>`<div class="person"><span class="mini-avatar">${esc(s.name.split(' ').map(n=>n[0]).slice(0,2).join(''))}</span>${esc(s.name)}</div>`).join('')}</div>`).join('');
  $('#rotation-select').innerHTML=state.rotations.map(r=>`<option value="${esc(r.id)}">${esc(r.start)} → ${esc(r.end)}</option>`).join('');$('#rotation-select').value=rotationId;
  const rotation=state.rotations.find(r=>r.id===rotationId)||state.rotations[0];
  $('#student-rows').innerHTML=state.students.map((s,i)=>`<tr><td>${esc(s.name)}</td><td><select aria-label="School day for ${esc(s.name)}" data-day="${i}">${['A','B'].map(d=>`<option ${s.day===d?'selected':''}>${d}</option>`).join('')}</select></td><td><select aria-label="Role for ${esc(s.name)}" data-role="${i}">${roles.map(r=>`<option ${rotation.assignments[s.name]===r?'selected':''}>${r}</option>`).join('')}</select></td><td><input type="checkbox" aria-label="Proposed presenter ${esc(s.name)}" data-presenter="${i}" ${state.presenters.includes(s.name)?'checked':''}></td></tr>`).join('');
@@ -188,7 +209,9 @@ sync=await setupSync({readOnly,hasLocalPlan,localSavedAt,localWriterId,writerId,
  if(!validState(incoming))throw Error('The shared schedule has an unsupported format.');cloudLoaded=true;
  state=normalizeAssignments(incoming);
  const movedToPending=moveGornailToPending(state);
- if(movedToPending&&!readOnly)setTimeout(()=>{if(ownerReady)save();},0);
+ const teamsUpdated=applyNewPresentationTeams(state);
+ changeBaseline=changeSnapshot(state);
+ if((movedToPending||teamsUpdated)&&!readOnly)setTimeout(()=>{if(ownerReady)save();},0);
  if(!state.rotations.some(r=>r.id===rotationId))rotationId=state.rotations.at(-1).id;
  if(!readOnly)try{localStorage.setItem(key,JSON.stringify(state));localSavedAt=Date.now();localStorage.setItem('cuped-planner-saved-at',String(localSavedAt));localStorage.setItem('cuped-planner-writer',writerId);}catch{}
  render();
