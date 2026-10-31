@@ -114,3 +114,7 @@ Notification summaries now group related edits by school-local day, showing only
 New rotations start with an explicit empty role for every student and an Unassigned option in the role selector. Existing rotations are not cleared or changed. In the authenticated owner editor, each selector includes the student's role and date range from the closest earlier rotation. The hint follows the selected rotation's dates, including when reviewing history; the first rotation shows that no earlier rotation exists. Intern views do not render these hints, and printouts omit them. Prior role history remains in the existing rotation records.
 
 Student Team & rotations opens the most recent rotation by start date, including after the initial live calendar arrives. Opening the tab again resets to the newest rotation. Students can still deliberately browse older rotations; background refreshes preserve that choice until they reopen the tab. Owner selections and all saved assignments are preserved.
+
+## Automatic calendar week
+
+The live calendar and editor default to the current Monday–Friday in America/New_York time. On Saturday and Sunday they show the upcoming school week instead (October 31/November 1 opens November 2–6). An open page still following the default week rolls forward on focus, return to the tab, or a minute timer. Manually browsed dates/months stay where the visitor chose them, and fixed snapshot links retain their saved displayed week. This changes only the viewing default, never stored visits or assignments.

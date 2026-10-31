@@ -1,3 +1,4 @@
+import {defaultSchoolWeek} from './school-week.js?v=28';
 import {blankRotation,previousRotation,latestRotation} from './rotations.js?v=27';
 import {applyNewPresentationTeams,changeSnapshot,recordCalendarChanges,recentUpdates,teacherProgress} from './calendar-updates.js?v=25';
 import {moveGornailToPending,pendingVisits} from './pending-visits.js?v=22';
@@ -47,7 +48,8 @@ let seenUpdates=new Set();try{seenUpdates=new Set(JSON.parse(localStorage.getIte
 let announcedUpdates=new Set();
 let calendarMode='week';
 let viewerPickedRotation=false;
-let week=new Date(2026,9,26), filter='All',rotationId=latestRotation(state.rotations).id;
+let defaultWeek=defaultSchoolWeek();
+let week=new Date(defaultWeek), filter='All',rotationId=latestRotation(state.rotations).id;
 if(shared)week=new Date(shared.week+'T12:00:00');
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const iso=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
@@ -273,3 +275,13 @@ $('#remove-team-photo').onclick=()=>{
  if(readOnly||!ownerReady||!confirm('Remove the team photo from this schedule?'))return;
  delete state.teamPhoto;save();
 };
+
+function refreshDefaultSchoolWeek(){
+ if(shared)return;
+ const next=defaultSchoolWeek();if(next.getTime()===defaultWeek.getTime())return;
+ if(calendarMode==='week'&&week.getTime()===defaultWeek.getTime()){week=new Date(next);render();}
+ defaultWeek=next;
+}
+window.addEventListener('focus',refreshDefaultSchoolWeek);
+document.addEventListener('visibilitychange',()=>{if(!document.hidden)refreshDefaultSchoolWeek();});
+setInterval(refreshDefaultSchoolWeek,60000);
