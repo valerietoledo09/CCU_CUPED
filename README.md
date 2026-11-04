@@ -118,3 +118,7 @@ Student Team & rotations opens the most recent rotation by start date, including
 ## Automatic calendar week
 
 The live calendar and editor default to the current Monday–Friday in America/New_York time. On Saturday and Sunday they show the upcoming school week instead (October 31/November 1 opens November 2–6). An open page still following the default week rolls forward on focus, return to the tab, or a minute timer. Manually browsed dates/months stay where the visitor chose them, and fixed snapshot links retain their saved displayed week. This changes only the viewing default, never stored visits or assignments.
+
+## Mandatory tabling and visible visit statuses
+
+All scheduled Tabling with Rory activities display MANDATORY with a light-red treatment in calendar cards and event details. The highlight applies to the tabling activity within mixed events, preserving separate FinEd and mobile branch labels. Classroom visit cards and their detail dialog show bold, explicit status labels with text/icons and distinct colors: amber Planned, green Confirmed, blue Completed, plus separate email-sent, pending and cancelled styles. Status changes update appearance immediately, and live viewers receive them through existing sync. Calendar records, times and saved statuses are unchanged.
