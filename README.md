@@ -122,3 +122,9 @@ The live calendar and editor default to the current Monday–Friday in America/N
 ## Mandatory tabling and visible visit statuses
 
 All scheduled Tabling with Rory activities display MANDATORY with a light-red treatment in calendar cards and event details. The highlight applies to the tabling activity within mixed events, preserving separate FinEd and mobile branch labels. Classroom visit cards and their detail dialog show bold, explicit status labels with text/icons and distinct colors: amber Planned, green Confirmed, blue Completed, plus separate email-sent, pending and cancelled styles. Status changes update appearance immediately, and live viewers receive them through existing sync. Calendar records, times and saved statuses are unchanged.
+
+## Owner-browser declined teacher list
+
+The authenticated owner gets a Teachers who declined section with add/edit/remove records and a local scheduling guard. Records live exclusively under a separate browser-storage key, not in shared plan state, public database rows, exports, snapshots, update history, or the source repository. The section is not mounted for viewers, is removed on owner lock/logout, and is excluded from printing. The UI explicitly states that records are local to the browser, should be used on a personal device, and are lost when storage is cleared. This is not cross-device private sync.
+
+A private setup URL fragment can import a minimal record after owner verification. URL fragments are not sent to the web host; successful import removes that fragment from the address bar. No teacher decline records are seeded in public source files. Keep setup links private. Separate owner-only backend storage would be required for private multi-device syncing.

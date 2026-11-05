@@ -1,3 +1,4 @@
+import {setupPrivateTeachers} from './private-teachers.js?v=30';
 import {defaultSchoolWeek} from './school-week.js?v=28';
 import {blankRotation,previousRotation,latestRotation} from './rotations.js?v=27';
 import {applyNewPresentationTeams,changeSnapshot,recordCalendarChanges,recentUpdates,teacherProgress} from './calendar-updates.js?v=25';
@@ -16,10 +17,11 @@ const writerId=crypto.randomUUID();
 let localSavedAt=0,localWriterId=null;try{localSavedAt=Number(localStorage.getItem('cuped-planner-saved-at'))||0;localWriterId=localStorage.getItem('cuped-planner-writer');}catch{}
 const pageParams=new URLSearchParams(location.search);
 const readOnly=pageParams.get('owner')!=='1'||pageParams.get('view')==='1'||location.pathname.endsWith('/view.html');
-let sync=null,ownerAccess=null,ownerReady=false,appStarted=false,verifierBusy=false;
+let sync=null,ownerAccess=null,ownerReady=false,appStarted=false,verifierBusy=false,privateTeacherControl=null;
 const plannerShell=document.querySelector('#planner-shell');
 function lockPlanner(){
  ownerReady=false;
+ privateTeacherControl?.destroy();privateTeacherControl=null;
  if(plannerShell){plannerShell.hidden=true;plannerShell.inert=true;}
  document.querySelectorAll('dialog[open]').forEach(d=>d.close());
  sync?.destroy();
@@ -32,6 +34,7 @@ if(readOnly)await requireInternAccess();
 ownerAccess=await requireOwnerAccess({readOnly,onLock:lockPlanner,onUnlock:()=>{if(appStarted)location.reload();}});
 ownerReady=!!ownerAccess?.isAuthorized();
 if(readOnly||ownerReady)unlockPlanner();
+if(!readOnly&&ownerReady)privateTeacherControl=setupPrivateTeachers({authorized:true,isAuthorized:()=>ownerReady&&!!ownerAccess?.isAuthorized()});
 
 let shared=null,shareError=false;
 if(readOnly)try{shared=await readSharedPlan(location.hash);}catch{shareError=true;}
@@ -129,7 +132,7 @@ $('#visit-form').elements.day.onchange=()=>presenterOptions(state.presenters);
 $('#visit-form').elements.status.onchange=updateVisitRequirements;
 function updateVisitRequirements(){const f=$('#visit-form');const indicator=$('#visit-status-indicator');indicator.className='visit-status status-'+visitStatusStyle(f.elements.status.value);indicator.textContent=visitStatusLabel(f.elements.status.value);for(const name of ['date','start','end'])f.elements[name].required=f.elements.status.value!=='Pending';}
 
-$('#visit-form').onsubmit=e=>{e.preventDefault();if(readOnly||!ownerReady)return;const f=e.target;const v=Object.fromEntries(new FormData(f));v.presenters=new FormData(f).getAll('presenter');delete v.presenter;v.lunchAcknowledged=f.elements.lunchAcknowledged.checked;if(v.status==='Pending'){v.date='';v.start='';v.end='';}const error=validateVisit(v,state,v.id);if(error){$('#form-error').textContent=error;return;}v.id=v.id||crypto.randomUUID();const i=state.visits.findIndex(x=>x.id===v.id);if(i<0)state.visits.push(v);else state.visits[i]=v;if(v.date){const d=new Date(v.date+'T12:00:00');d.setDate(d.getDate()-((d.getDay()+6)%7));week=d;}save();$('#visit-dialog').close();notice('Classroom visit saved.');};
+$('#visit-form').onsubmit=e=>{e.preventDefault();if(readOnly||!ownerReady)return;const f=e.target;const v=Object.fromEntries(new FormData(f));v.presenters=new FormData(f).getAll('presenter');delete v.presenter;v.lunchAcknowledged=f.elements.lunchAcknowledged.checked;if(v.status==='Pending'){v.date='';v.start='';v.end='';}if(privateTeacherControl?.hasDeclined(v.teacher)&&!['Cancelled','Completed','Pending'].includes(v.status)){$('#form-error').textContent='This teacher is on your private declined list. Do not schedule a presentation unless they give consent.';return;}const error=validateVisit(v,state,v.id);if(error){$('#form-error').textContent=error;return;}v.id=v.id||crypto.randomUUID();const i=state.visits.findIndex(x=>x.id===v.id);if(i<0)state.visits.push(v);else state.visits[i]=v;if(v.date){const d=new Date(v.date+'T12:00:00');d.setDate(d.getDate()-((d.getDay()+6)%7));week=d;}save();$('#visit-dialog').close();notice('Classroom visit saved.');};
 $('#delete-visit').onclick=()=>{if(readOnly||!ownerReady)return;if(!confirm('Delete this classroom visit?'))return;state.visits=state.visits.filter(v=>v.id!==$('#visit-form').elements.id.value);save();$('#visit-dialog').close();};
 function openEmail(v){if(readOnly||!ownerReady||!v)return;$('#email-recipient').value=state.teachers.find(t=>t.name===v.teacher)?.email||'';$('#email-body').value=emailDraft(v);$('#copy-email').textContent='Copy draft';$('#email-dialog').showModal();}
 $('#email-visit').onclick=()=>openEmail(state.visits.find(v=>v.id===$('#visit-form').elements.id.value));
@@ -143,7 +146,7 @@ function setCalendarExpanded(expanded){document.body.classList.toggle('calendar-
 $('#expand-calendar').onclick=()=>setCalendarExpanded(!document.body.classList.contains('calendar-expanded'));
 document.addEventListener('keydown',e=>{if(e.key==='Escape')setCalendarExpanded(false);});
  $$('[data-filter]').forEach(b=>b.onclick=()=>{filter=b.dataset.filter;$$('[data-filter]').forEach(x=>x.classList.toggle('selected',x===b));render();});
-$$('[data-tab]').forEach(b=>b.onclick=()=>{if(readOnly&&b.dataset.tab==='team'){viewerPickedRotation=false;rotationId=latestRotation(state.rotations).id;render();}$$('.tab').forEach(t=>t.hidden=t.id!==b.dataset.tab);$$('[data-tab]').forEach(x=>x.classList.toggle('active',x===b));$('#breadcrumb').textContent=b.textContent.slice(3).trim();$('.page-heading').classList.toggle('team-heading',b.dataset.tab==='team');renderTeamPhoto();$('#title').innerHTML=b.dataset.tab==='schedule'?'Your CCU Schedule, Simplified.':b.dataset.tab==='team'?'Work together.<br>Teach one another.':b.dataset.tab==='emails'?(readOnly?'Email drafts.<br>Authorization required.':'Your next visit.<br>One email away.'):'Good connections.<br>Great classrooms.';});
+$$('[data-tab]').forEach(b=>b.onclick=()=>{if(readOnly&&b.dataset.tab==='team'){viewerPickedRotation=false;rotationId=latestRotation(state.rotations).id;render();}$$('.tab').forEach(t=>t.hidden=t.id!==b.dataset.tab);$$('[data-tab]').forEach(x=>x.classList.toggle('active',x===b));$('#breadcrumb').textContent=b.textContent.slice(3).trim();$('.page-heading').classList.toggle('team-heading',b.dataset.tab==='team');renderTeamPhoto();$('#title').innerHTML=b.dataset.tab==='schedule'?'Your CCU Schedule, Simplified.':b.dataset.tab==='team'?'Work together.<br>Teach one another.':b.dataset.tab==='private-teachers'?'Private teacher responses.':b.dataset.tab==='emails'?(readOnly?'Email drafts.<br>Authorization required.':'Your next visit.<br>One email away.'):'Good connections.<br>Great classrooms.';});
 $('#rotation-select').onchange=e=>{viewerPickedRotation=true;rotationId=e.target.value;render();};
 $('#add-rotation').onclick=()=>{const f=$('#rotation-form');const last=state.rotations.at(-1);const start=new Date(last.end+'T12:00:00');start.setDate(start.getDate()+3);f.elements.start.value=iso(start);const end=new Date(start);end.setDate(end.getDate()+11);f.elements.end.value=iso(end);$('#rotation-error').textContent='';$('#rotation-dialog').showModal();};
 $('#close-rotation').onclick=()=>$('#rotation-dialog').close();$('#rotation-form').onsubmit=e=>{e.preventDefault();if(readOnly||!ownerReady)return;const f=e.target,start=f.elements.start.value,end=f.elements.end.value;if(end<start||state.rotations.some(r=>r.start<=end&&r.end>=start)){$('#rotation-error').textContent='Choose an end after the start, without overlapping an existing rotation.';return;}const r=blankRotation(state.students,start,end);state.rotations.push(r);state.rotations.sort((a,b)=>a.start.localeCompare(b.start));rotationId=r.id;save();$('#rotation-dialog').close();};
