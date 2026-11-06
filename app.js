@@ -1,4 +1,4 @@
-import {setupOwnerResources} from './owner-resources.js?v=33';
+import {setupOwnerResources} from './owner-resources.js?v=34';
 import {applyTeacherDirectory,teacherRoom,visitRoom} from './teacher-directory.js?v=31';
 import {setupPrivateTeachers} from './private-teachers.js?v=30';
 import {defaultSchoolWeek} from './school-week.js?v=28';

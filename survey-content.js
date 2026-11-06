@@ -1,3 +1,4 @@
+export const defaultGoogleFormUrl='https://docs.google.com/forms/d/e/1FAIpQLSd7KX4psh0Q_r6KtN0GF7PCgdAeDsDpffVU1ioZ3if5gaObHg/viewform?usp=header';
 export const feedbackEmail='0643122@students.dadeschools.net';
 export const feedbackQuestions=[
  ['clarity','How clearly did the interns explain the information?'],
