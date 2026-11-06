@@ -1,4 +1,4 @@
-import {defaultGoogleFormUrl,normalizeGoogleFormLink,surveyInvitation} from './survey-content.js?v=34';
+import {defaultGoogleFormUrl,normalizeGoogleFormLink,surveyInvitation} from './survey-content.js?v=35';
 const FORM_LINK_KEY='cuped-owner-google-form-link-v1';
 const TRACKER_KEY='cuped-owner-survey-followups-v1';
 export function setupOwnerResources({authorized,isAuthorized=()=>false,getState=()=>({visits:[],teachers:[]})}={}){
