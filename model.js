@@ -1,3 +1,4 @@
+import {visitRoom} from './teacher-directory.js';
 import {schoolDateInfo} from './school-calendar.js';
 import {isValidTeamPhoto} from './team-photo.js';
 import {departmentLunch,roomLunch} from './lunch.js';
@@ -31,7 +32,11 @@ export function validateVisit(v,state,exclude){
  if(state.visits.some(x=>x.status!=='Cancelled'&&v.status!=='Cancelled'&&x.id!==exclude&&x.date===v.date&&x.start<v.end&&x.end>v.start&&(x.teacher===v.teacher||x.presenters.some(n=>v.presenters.includes(n)))))return 'This overlaps another visit for this teacher or a presenter.';
  return '';
 }
-export function emailDraft(v){return `Good morning ${v.teacher},\n\nA student from our CCU group spoke with you last week, and you confirmed that we could visit your classroom. Can our CCU CUPED interns visit your classroom today (${v.date}) from ${v.start} to ${v.end} to present EdFed membership opportunities?\n\nPresenters: ${v.presenters.join(', ')}.\n\nPlease reply to confirm whether this time works and share your room number.\n\nThank you,\nValerie\nCCU CUPED Project Lead`;}
+export function emailDraft(v,state){
+ const room=visitRoom(v,state),confirmed=v.status==='Confirmed';
+ return `Good morning ${v.teacher}${room?' (Room '+room+')':''},\n\n${confirmed?'Thank you for confirming our classroom visit. Our CCU CUPED interns will visit your classroom':'Can our CCU CUPED interns visit your classroom'} on ${v.date} from ${v.start} to ${v.end}${room?' in Room '+room:''} to present EdFed membership opportunities${confirmed?'.':'?'}\n\nPresenters: ${v.presenters.join(', ')}.\n\n${confirmed?'Please let us know if these arrangements change.':'Please reply to confirm whether this time works.'}\n\nThank you,\nValerie\nCCU CUPED Project Lead`;
+}
+
 export function validState(s){return isValidTeamPhoto(s?.teamPhoto)&&(s?.assignments===undefined||(Array.isArray(s.assignments)&&s.assignments.every(a=>a&&typeof a.id==='string'&&typeof a.date==='string'&&typeof a.role==='string'&&typeof a.description==='string'&&Array.isArray(a.assignees)&&a.assignees.every(n=>typeof n==='string')&&(a.status===undefined||typeof a.status==='string'))))&&s?.version===1&&Array.isArray(s.students)&&s.students.length>0&&s.students.every(x=>typeof x.name==='string'&&['A','B'].includes(x.day))&&Array.isArray(s.teachers)&&s.teachers.every(t=>typeof t.name==='string'&&typeof t.email==='string')&&Array.isArray(s.rotations)&&s.rotations.length>0&&s.rotations.every(r=>typeof r.id==='string'&&typeof r.start==='string'&&typeof r.end==='string'&&r.assignments&&typeof r.assignments==='object')&&Array.isArray(s.presenters)&&Array.isArray(s.visits)&&s.visits.every(v=>typeof v.id==='string'&&typeof v.date==='string'&&typeof v.teacher==='string'&&typeof v.start==='string'&&typeof v.end==='string'&&Array.isArray(v.presenters)&&v.presenters.every(n=>typeof n==='string'));}
 
 export const confirmedDays = {'2026-10-29':'B','2026-10-30':'A'};
@@ -79,7 +84,7 @@ export function enrichTeachers(state){
  const aliases={'Ms. Depool':'DE POOL','Ms. Macqouid':'MACQUOID'};
  for(const teacher of state.teachers){
   if(!teacher.lunch)teacher.lunch={A:'unknown',B:'unknown'};
-  const last=aliases[teacher.name]||teacher.name.replace(/^(Ms|Mr)\. /,'').toUpperCase();
+  const last=aliases[teacher.name]||teacher.name.replace(/^(Ms|Mr|Mrs)\. /,'').toUpperCase();
   const matches=faculty.filter(f=>f.last===last&&(teacher.name!=='Ms. Riley'||f.first==='TRACEY'));
   if(matches.length===1&&!teacher.facultyEmail){
    const f=matches[0];teacher.fullName=f.first+' '+f.last;teacher.department=f.department;teacher.facultyEmail=f.email;
