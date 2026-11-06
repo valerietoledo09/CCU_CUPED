@@ -21,5 +21,15 @@ export function feedbackSurveyUrl(base,visit){
  const url=new URL('survey.html',base);url.search='';url.hash=visit?new URLSearchParams({teacher:visit.teacher,date:visit.date}).toString():'';return url.href;
 }
 export function surveyInvitation(visit,url){
- return {subject:'Thank you — quick CUPED presentation feedback',body:`Hello ${visit?.teacher||'Teacher'},\n\nThank you for welcoming our CCU CUPED interns${visit?.date?' on '+visit.date:''}. We would appreciate about two minutes of feedback to help us improve future presentations.\n\nTeacher feedback survey:\n${url}\n\nYou can skip any question. At the end, review your answers and send them through your email app to me. Your response comes from your email account and is not anonymous. If you prefer, simply reply with what worked well and one thing we could improve.\n\nThank you for your time and support,\nValerie Gutierrez\nCCU CUPED Project Lead`};
+ let google=false;try{normalizeGoogleFormLink(url);google=true;}catch{}
+ return {subject:'Thank you — quick CUPED presentation feedback',body:`Hello ${visit?.teacher||'Teacher'},\n\nThank you for welcoming our CCU CUPED interns${visit?.date?' on '+visit.date:''}. We would appreciate about two minutes of feedback to help us improve future presentations.\n\nTeacher feedback survey:\n${url}\n\n${google?'You can skip any question. Submit your feedback directly in the Google Form; your name and email are optional. Please avoid including student personal information.':'You can skip any question. At the end, review your answers and send them through your email app to me. Your response comes from your email account and is not anonymous.'} If you prefer, simply reply with what worked well and one thing we could improve.\n\nThank you for your time and support,\nValerie Gutierrez\nCCU CUPED Project Lead`};
+}
+export function normalizeGoogleFormLink(value){
+ const url=new URL(String(value).trim());
+ if(url.protocol!=='https:')throw Error('Use the secure Google Form respondent link.');
+ if(url.username||url.password)throw Error('Use a plain Google Form respondent link.');
+ const short=url.hostname==='forms.gle'&&url.pathname.length>1;
+ const full=url.hostname==='docs.google.com'&&/^\/forms\/(?:u\/\d+\/)?d\/(?:e\/)?[^/]+\/viewform\/?$/.test(url.pathname);
+ if(!short&&!full)throw Error('Paste the teacher/respondent link (forms.gle or a Google Forms viewform URL), not an editor or response-sheet link.');
+ return url.href;
 }
