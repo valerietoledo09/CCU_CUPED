@@ -1,5 +1,5 @@
 import {setupOwnerResources} from './owner-resources.js?v=35';
-import {applyTeacherDirectory,teacherRoom,visitRoom} from './teacher-directory.js?v=31';
+import {applyTeacherDirectory,teacherRoom,visitRoom} from './teacher-directory.js?v=39';
 import {setupPrivateTeachers} from './private-teachers.js?v=30';
 import {defaultSchoolWeek} from './school-week.js?v=28';
 import {blankRotation,previousRotation,latestRotation} from './rotations.js?v=27';
