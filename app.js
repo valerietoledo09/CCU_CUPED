@@ -179,7 +179,7 @@ $('#copy-share').onclick=async()=>{try{await navigator.clipboard.writeText($('#s
 if(readOnly){
  document.querySelector('#viewer-owner-login')?.removeAttribute('hidden');
  $('[data-tab=emails]').hidden=false;$('[data-tab=emails]').disabled=false;$('#emails').hidden=true;$('#email-dialog').hidden=true;$('#email-recipient').value='';$('#email-body').value='';
- $('.warm .text-link').textContent='Teacher confirmations are managed by the project lead.';$('.warm small').textContent='Open Email drafts to see how to request authorization.';$('#emails .section-bar p').textContent='Access to teacher email drafts requires authorization from the project lead.';
+ $('.warm .text-link').textContent='Teacher confirmations are managed by Valerie.';$('.warm small').textContent='';$('.warm small').hidden=true;$('#emails .section-bar p').textContent='Access to teacher email drafts requires authorization from the project lead.';
  for(const selector of ['#add-assignment','#sync-settings','#add-visit','#add-rotation','#import','#export','#share'])$(selector).hidden=true;
  $('.storage-note').innerHTML='This is a fixed snapshot. <a href="view.html">Open the current live schedule</a> for updates.';
  $('footer').innerHTML='<span class="badge">VIEW-ONLY SCHEDULE</span>';
