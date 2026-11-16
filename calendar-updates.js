@@ -1,6 +1,6 @@
 export const newPresentationTeams = ['Ella Corea','Esmeralda Martinez','Damian Bautista','Samantha Calvo-Ferrer','Cathy Vu','Dora Sofia','Ava Cardona','Alexis Armenteros'];
 export function applyNewPresentationTeams(state) {
- if(state.presenterTeamRevision==='2026-10-30')return false;
+ if(state.presenterTeamRevision&&state.presenterTeamRevision>='2026-10-30')return false;
  state.presenters=[...newPresentationTeams];state.presenterTeamRevision='2026-10-30';
  state.calendarUpdates={...state.calendarUpdates,'teams-2026-10-30':{id:'teams-2026-10-30',at:'2026-10-30',messages:['New presentation teams announced. A-Day: Ella Corea, Esmeralda Martinez, Damian Bautista, Samantha Calvo-Ferrer. B-Day: Cathy Vu, Dora Sofia, Ava Cardona, Alexis Armenteros.']}};
  return true;

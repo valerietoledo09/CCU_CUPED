@@ -1,9 +1,10 @@
+import {applyNovemberRoles} from './november-rotation.js?v=40';
 import {setupOwnerResources} from './owner-resources.js?v=35';
 import {applyTeacherDirectory,teacherRoom,visitRoom} from './teacher-directory.js?v=39';
 import {setupPrivateTeachers} from './private-teachers.js?v=30';
 import {defaultSchoolWeek} from './school-week.js?v=28';
 import {blankRotation,previousRotation,latestRotation} from './rotations.js?v=27';
-import {applyNewPresentationTeams,changeSnapshot,recordCalendarChanges,recentUpdates,teacherProgress} from './calendar-updates.js?v=25';
+import {applyNewPresentationTeams,changeSnapshot,recordCalendarChanges,recentUpdates,teacherProgress} from './calendar-updates.js?v=40';
 import {moveGornailToPending,pendingVisits} from './pending-visits.js?v=22';
 import {learningSchedule,learningOn} from './learning-schedule.js?v=21';
 import {schoolDateInfo,calendarRange} from './school-calendar.js';
@@ -21,6 +22,8 @@ const pageParams=new URLSearchParams(location.search);
 const readOnly=pageParams.get('owner')!=='1'||pageParams.get('view')==='1'||location.pathname.endsWith('/view.html');
 let sync=null,ownerAccess=null,ownerReady=false,appStarted=false,verifierBusy=false,privateTeacherControl=null,ownerResources=null;
 const plannerShell=document.querySelector('#planner-shell');
+let novemberRoleIssue='';
+function applyNovemberRotationUpdate(state){const result=applyNovemberRoles(state);novemberRoleIssue=result.issue;return result.changed;}
 function lockPlanner(){
  ownerReady=false;
  privateTeacherControl?.destroy();privateTeacherControl=null;
@@ -47,7 +50,7 @@ normalizeAssignments(state);
 let cloudLoaded=false;
 if(!shared)state=enrichTeachers(applyFirstWeekPlan(state));if(!readOnly)try{localStorage.setItem(key,JSON.stringify(state));}catch{}
 if(!shared)moveGornailToPending(state);
-if(!shared){applyNewPresentationTeams(state);applyTeacherDirectory(state);state=enrichTeachers(state);}
+if(!shared){applyNewPresentationTeams(state);applyTeacherDirectory(state);state=enrichTeachers(state);applyNovemberRotationUpdate(state);}
 let changeBaseline=changeSnapshot(state);
 const updateSeenKey='cuped-seen-calendar-updates-v1';
 let seenUpdates=new Set();try{seenUpdates=new Set(JSON.parse(localStorage.getItem(updateSeenKey))||[]);}catch{}
@@ -86,6 +89,8 @@ $('#mark-updates-read').onclick=()=>{recentUpdates(state).forEach(entry=>seenUpd
 $('#dismiss-update-alert').onclick=()=>{$('#calendar-update-alert').hidden=true;};
 $('#view-updates').onclick=()=>{setCalendarExpanded(false);$('#calendar-updates').open=true;$('#calendar-updates').scrollIntoView({behavior:'smooth',block:'nearest'});};
 function render(){
+ $('#november-role-status').hidden=readOnly||!novemberRoleIssue;
+ $('#november-role-status').textContent=novemberRoleIssue;
  ownerResources?.refresh();
  renderUpdates();
  renderTeamPhoto();
@@ -231,8 +236,9 @@ sync=await setupSync({readOnly,hasLocalPlan,localSavedAt,localWriterId,writerId,
  const teamsUpdated=applyNewPresentationTeams(state);
  const directoryUpdated=applyTeacherDirectory(state);
  state=enrichTeachers(state);
+ const novemberRolesUpdated=applyNovemberRotationUpdate(state);
  changeBaseline=changeSnapshot(state);
- if((movedToPending||teamsUpdated||directoryUpdated)&&!readOnly)setTimeout(()=>{if(ownerReady)save();},0);
+ if((movedToPending||teamsUpdated||directoryUpdated||novemberRolesUpdated)&&!readOnly)setTimeout(()=>{if(ownerReady)save();},0);
  if((readOnly&&!viewerPickedRotation)||!state.rotations.some(r=>r.id===rotationId))rotationId=latestRotation(state.rotations).id;
  if(!readOnly)try{localStorage.setItem(key,JSON.stringify(state));localSavedAt=Date.now();localStorage.setItem('cuped-planner-saved-at',String(localSavedAt));localStorage.setItem('cuped-planner-writer',writerId);}catch{}
  render();
