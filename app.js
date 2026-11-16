@@ -1,4 +1,4 @@
-import {applyNovemberRoles} from './november-rotation.js?v=40';
+import {applyNovemberRoles} from './november-rotation.js?v=41';
 import {setupOwnerResources} from './owner-resources.js?v=35';
 import {applyTeacherDirectory,teacherRoom,visitRoom} from './teacher-directory.js?v=39';
 import {setupPrivateTeachers} from './private-teachers.js?v=30';
