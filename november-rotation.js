@@ -144,7 +144,7 @@ export function applyNovemberRoles(state){
  state.presenterTeamRevision=revision;
  state.novemberRolesApplied=revision;
  state.rudyPresentationRevision=revision;
- state.calendarUpdates={...state.calendarUpdates,'rotation-2026-11-16':{id:'rotation-2026-11-16',at:'2026-11-15',messages:['November 16–27 rotation assigned with new roles; Valerie remains Project Lead.','New presentation teams: A-Day — Jazmyn Santiago, Amanda Posner, and Rudy Ramos. B-Day — Jolie Chirino, Daniela Sofia, and Ava Sardinas.']}};
+ state.calendarUpdates={...state.calendarUpdates,'rotation-2026-11-16':{id:'rotation-2026-11-16',at:'2026-11-15',messages:['New presentation teams: A-Day — Jazmyn Santiago, Amanda Posner, and Rudy Ramos. B-Day — Jolie Chirino, Daniela Sofia, and Ava Sardinas.']}};
  return {changed:true,issue:''};
 }
 

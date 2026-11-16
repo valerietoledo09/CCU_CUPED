@@ -41,6 +41,7 @@ export function recordCalendarChanges(before,state,{id=crypto.randomUUID(),at=ne
  state.calendarUpdates=Object.fromEntries(rawUpdates(state).slice(0,100).map(entry=>[entry.id,entry]));return true;
 }
 function conciseMessage(message){
+ if(message==="November 16–27 rotation assigned with new roles; Valerie remains Project Lead.")return '';
  if(/Teacher directory details|Student roster details/.test(message))return '';
  if(/^Presentation teams updated:|^New presentation teams announced/.test(message))return 'Presentation teams updated.';
  if(message.includes(' → ')){
