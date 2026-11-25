@@ -59,6 +59,7 @@ await student.close();
 const owner=await browser.newContext({viewport:{width:1440,height:1000}});
 await attach(owner);
 await owner.addInitScript(({project,ownerId})=>{
+ if(location.origin!=='http://127.0.0.1:3000')return;
  localStorage.setItem('cuped-cloud-session',JSON.stringify({project_url:project,access_token:'review-test-access',refresh_token:'review-test-refresh',expires_at:Math.floor(Date.now()/1000)+3600,user:{id:ownerId}}));
 },{project,ownerId});
 const admin=await owner.newPage();
